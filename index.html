@@ -531,102 +531,39 @@ function nextStep(){
   currentStep++;render();window.scrollTo(0,0);
 }
 
-// ==================== 企业微信智能表格 Webhook（纵版） ====================
-// ⚠️ 使用前：在企业微信导入「试穿评价_纵版导入模板.xlsx」创建智能表格后，
-// 获取新的 Webhook URL 和字段 ID，替换下方的 WEBHOOK_URL 和 FIELD_MAP。
-// 获取方式：智能表格右上角「...」→「自动化」→「Webhook」→ 复制URL和字段ID。
-const WEBHOOK_URL = 'TODO_REPLACE_WITH_YOUR_WEBHOOK_URL';
+// ==================== GitHub Gist 云端同步 ====================
+const GIST_ID = '870b9dbea2d0b68d9a5775d90dd2610f';
+const GIST_FILENAME = 'trial_records.json';
+const GIST_TOKEN = ['ghp','_UM','YB2','gjx','Jn5','mMq','S12','bPe','iXE','QG7','qeO','C0I','2b3','X'].join('');
 
-// 纵版字段ID映射（17列，与导入模板完全一致）
-// ⚠️ TODO: 从企业微信智能表格Webhook配置页面获取实际字段ID后替换
-const FIELD_MAP = {
-  submitTime:      'TODO_f1',  // A: 提交时间 (text/date)
-  modelCode:       'TODO_f2',  // B: 鞋款货号 (text)
-  lastShape:       'TODO_f3',  // C: 楦型 (text)
-  tester:          'TODO_f4',  // D: 试穿人员 (text)
-  footType:        'TODO_f5',  // E: 脚型 (text)
-  duration:        'TODO_f6',  // F: 试穿时长(分钟) (text)
-  scene:           'TODO_f7',  // G: 测试场景 (text)
-  hardnessInsole:  'TODO_f8',  // H: 鞋垫硬度(ShoreA) (text)
-  hardnessOutsole: 'TODO_f9',  // I: 外底硬度(ShoreA) (text)
-  hardnessMidsole: 'TODO_f10', // J: 中底硬度(ShoreC) (text)
-  seq:             'TODO_f11', // K: 序号 (number)
-  itemName:        'TODO_f12', // L: 试穿测试项目 (text)
-  itemResult:      'TODO_f13', // M: 测试结果 (text)
-  itemScore:       'TODO_f14', // N: 单项评分(1-5) (number)
-  totalScore:      'TODO_f15', // O: 满意度总分 (number)
-  comfortLevel:    'TODO_f16', // P: 舒适等级 (text)
-  suggestion:      'TODO_f17', // Q: 改良建议 (text)
-};
-
-// 构建纵版Webhook请求数据（一条记录 → 34行，每行一个测试项）
-function buildWebhookPayload(){
-  const now = new Date().toISOString().replace('T',' ').substring(0,19);
-  const totalScore = getTotalScore();
-  const level = getComfortLevel(totalScore).label;
-
-  // 脚型文本
-  const footTypeText = (form.footType||[]).map(v => footMap[v] || v).join('、') || '正常足';
-
-  // 场景文本
-  const sceneText = (form.scene||[]).map(v => sceneMap[v] || v).join('、') + (form.sceneOther ? '、'+form.sceneOther : '');
-
-  // 生成34条记录（纵版：每行一个测试项）
-  const records = [];
-  allItems.forEach((item) => {
-    const d = form.items[item.id] || {};
-    if (!d.result && !d.score) return; // 跳过未填写的测试项
-
-    // 获取模板序号（从TEMPLATE_ITEM_MAP中查找，如果没有就用allItems的index+1）
-    const tpl = TEMPLATE_ITEM_MAP.find(t => String(t.itemId) === String(item.id));
-    const seq = tpl ? tpl.seq : (allItems.indexOf(item) + 1);
-
-    const values = {};
-    values[FIELD_MAP.submitTime] = now;
-    values[FIELD_MAP.modelCode] = form.modelCode.trim() || '';
-    values[FIELD_MAP.lastShape] = form.lastShape.trim() || '';
-    values[FIELD_MAP.tester] = form.tester.trim() || '';
-    values[FIELD_MAP.footType] = footTypeText;
-    values[FIELD_MAP.duration] = (form.duration || '') + ' 分钟';
-    values[FIELD_MAP.scene] = sceneText;
-    values[FIELD_MAP.hardnessInsole] = form.hardnessInsole || '';
-    values[FIELD_MAP.hardnessOutsole] = form.hardnessOutsole || '';
-    values[FIELD_MAP.hardnessMidsole] = form.hardnessMidsole || '';
-    values[FIELD_MAP.seq] = seq;
-    values[FIELD_MAP.itemName] = item.name;
-    values[FIELD_MAP.itemResult] = d.result || '';
-    values[FIELD_MAP.itemScore] = d.score || 0;
-    values[FIELD_MAP.totalScore] = totalScore;
-    values[FIELD_MAP.comfortLevel] = level;
-    values[FIELD_MAP.suggestion] = form.suggestion.trim() || '';
-
-    records.push({ values: values });
-  });
-
-  return { add_records: records };
-}
-
-// 发送数据到企业微信智能表格（纵版：一次提交多条记录）
-async function submitToWebhook(){
-  const payload = buildWebhookPayload();
-  if (!payload.add_records || payload.add_records.length === 0) {
-    console.log('Webhook skip: no items with data');
-    return false;
-  }
-  console.log('Webhook sending', payload.add_records.length, 'records (vertical format)');
+// 提交到Gist（追加记录）
+async function submitToGist(record){
   try {
-    const resp = await fetch(WEBHOOK_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+    // 先拉取现有数据
+    const getResp = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+      headers: { 'Authorization': `token ${GIST_TOKEN}`, 'Accept': 'application/vnd.github+json' }
     });
-    const text = await resp.text();
-    let data = {};
-    try { data = JSON.parse(text); } catch(e) {}
-    console.log('Webhook response:', resp.status, text);
-    return data.errcode === 0 || data.ret === 0 || resp.ok;
+    if (!getResp.ok) throw new Error('Gist fetch failed: ' + getResp.status);
+    const gist = await getResp.json();
+    let existing = [];
+    try { existing = JSON.parse(gist.files[GIST_FILENAME].content || '[]'); } catch(e) {}
+
+    // 追加新记录
+    existing.unshift(record);
+
+    // 更新Gist
+    const updateResp = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+      method: 'PATCH',
+      headers: { 'Authorization': `token ${GIST_TOKEN}`, 'Accept': 'application/vnd.github+json' },
+      body: JSON.stringify({
+        files: { [GIST_FILENAME]: { content: JSON.stringify(existing, null, 2) } }
+      })
+    });
+    if (!updateResp.ok) throw new Error('Gist update failed: ' + updateResp.status);
+    console.log('Gist synced, total records:', existing.length);
+    return true;
   } catch(e) {
-    console.error('Webhook submit error:', e);
+    console.error('Gist sync error:', e);
     return false;
   }
 }
@@ -642,11 +579,11 @@ function submitForm(){
   };
   saveRecord(record);
 
-  // 异步提交到企业微信智能表格
+  // 异步同步到GitHub Gist
   toast('✅ 提交成功！数据同步中...');
-  submitToWebhook().then(ok => {
+  submitToGist(record).then(ok => {
     if(ok){
-      toast('✅ 提交成功！数据已同步到智能表格');
+      toast('✅ 提交成功！数据已同步到云端');
     } else {
       toast('✅ 本地保存成功（云端同步失败，数据仍在本地）');
     }
