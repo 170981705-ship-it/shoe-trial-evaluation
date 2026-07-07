@@ -413,63 +413,124 @@ function doExportFormXLSX(recordsToExport){
   if(typeof XLSX === 'undefined') return toast('⚠️ 正在加载Excel库，请稍后再试');
   const wb = XLSX.utils.book_new();
 
+  // 样式定义
+  const fontBase = { name: '等线', sz: 11 };
+  const fontBold = { name: '等线', sz: 11, bold: true };
+  const fontTitle = { name: '等线', sz: 14, bold: true };
+  const fontSection = { name: '等线', sz: 12, bold: true };
+  const fontHeader = { name: '等线', sz: 11, bold: true };
+  const thinBorder = { top: { style: 'thin', color: { rgb: '000000' } }, bottom: { style: 'thin', color: { rgb: '000000' } }, left: { style: 'thin', color: { rgb: '000000' } }, right: { style: 'thin', color: { rgb: '000000' } } };
+
   recordsToExport.forEach((r, idx) => {
-    const sheetName = (r.modelCode || '记录'+(idx+1)).replace(/[\\\/\*\?\[\]:]/g,'_').substring(0,31);
+    const sheetName = (r.modelCode || '记录'+(idx+1)).replace(/[\\/\*\?\[\]:]/g,'_').substring(0,31);
     const wsData = [];
-    const mergeCells = [];
+    const merges = [];
+    let rowIdx = 0;
 
-    // 标题
-    wsData.push(['运动休闲鞋整鞋舒适度主观试穿评价表','','','']);
-    // 基础信息栏标题
-    wsData.push(['基础信息栏','','','']);
-    // 货号+楦型
-    wsData.push(['鞋款货号', r.modelCode||'', '楦型', r.lastShape||'']);
-    // 硬度
-    wsData.push(['鞋垫硬度', (r.hardnessInsole||'____')+' Shore A（参考：25-35超软/36-45适中/46-60偏硬）','','']);
-    wsData.push(['外底硬度', (r.hardnessOutsole||'____')+' Shore A（参考：55-65耐磨止滑）','','']);
-    wsData.push(['中底硬度', (r.hardnessMidsole||'____')+' Shore C（参考：40-50通勤甜区/51-60运动支撑）','','']);
-    // 脚型
-    const footText = (r.footType||[]).map(v=>footMap[v]||v).join('□');
-    wsData.push(['试穿人员脚型', '□'+(footText||'正常足'),'','']);
-    // 试穿员+时长
-    wsData.push(['试穿员', r.tester||'', '试穿时长', (r.duration||'')+'分钟']);
-    // 场景
-    const sceneText = (r.scene||[]).map(v=>'□'+sceneMap[v]).join(' ')+(r.sceneOther?' □'+r.sceneOther:'');
-    wsData.push(['测试场景', sceneText,'','']);
-    // 总分
-    wsData.push(['满意度总分', (r.totalScore||0)+' /170','','']);
-    // 建议（2行合并）
-    wsData.push(['试穿改良建议', r.suggestion||'','','']);
-    wsData.push(['','','','']);
+    function addRow(cells) {
+      const startRow = rowIdx;
+      wsData.push(cells);
+      rowIdx++;
+      return startRow;
+    }
+    function cell(v, style) { return { v: v, s: style }; }
 
-    // 核心测试项
-    wsData.push(['核心测试项','','','']);
-    wsData.push(['序号','试穿测试项目','测试结果二选一','单项评分(1-5分)']);
+    // Row 1: 标题（A1:D1 合并）
+    const r1 = addRow([cell('运动休闲鞋整鞋舒适度主观试穿评价表', { font: fontTitle, border: thinBorder, alignment: { horizontal: 'center', vertical: 'center' } }), '', '', '']);
+    merges.push({ s: { r: r1, c: 0 }, e: { r: r1, c: 3 } });
 
+    // Row 2: 基础信息栏（A2:D2 合并）
+    const r2 = addRow([cell('基础信息栏', { font: fontBold, border: thinBorder }), '', '', '']);
+    merges.push({ s: { r: r2, c: 0 }, e: { r: r2, c: 3 } });
+
+    // Row 3: 货号+楦型
+    addRow([cell('鞋款货号', { font: fontBase, border: thinBorder }), cell(r.modelCode||'', { font: fontBase, border: thinBorder }), cell('楦型', { font: fontBase, border: thinBorder }), cell(r.lastShape||'', { font: fontBase, border: thinBorder })]);
+
+    // Row 4: 鞋垫硬度（B4:D4 合并）
+    const r4 = addRow([cell('鞋垫硬度', { font: fontBase, border: thinBorder }), cell((r.hardnessInsole||'____')+' Shore A（参考：25-35超软/36-45适中/46-60偏硬）', { font: fontBase, border: thinBorder }), '', '']);
+    merges.push({ s: { r: r4, c: 1 }, e: { r: r4, c: 3 } });
+
+    // Row 5: 外底硬度（B5:D5 合并）
+    const r5 = addRow([cell('外底硬度', { font: fontBase, border: thinBorder }), cell((r.hardnessOutsole||'____')+' Shore A（参考：55-65耐磨止滑）', { font: fontBase, border: thinBorder }), '', '']);
+    merges.push({ s: { r: r5, c: 1 }, e: { r: r5, c: 3 } });
+
+    // Row 6: 中底硬度（B6:D6 合并）
+    const r6 = addRow([cell('中底硬度', { font: fontBase, border: thinBorder }), cell((r.hardnessMidsole||'____')+' Shore C（参考：40-50通勤甜区/51-60运动支撑）', { font: fontBase, border: thinBorder }), '', '']);
+    merges.push({ s: { r: r6, c: 1 }, e: { r: r6, c: 3 } });
+
+    // Row 7: 脚型（B7:D7 合并）- 显示所有选项
+    const footOpts = ['正常足','高足弓','扁平足','宽脚','瘦脚'];
+    const footChecked = (r.footType||[]).map(v=>footMap[v]||v);
+    const footText = footOpts.map(opt => (footChecked.includes(opt) ? '☑' : '□') + opt).join(' ');
+    const r7 = addRow([cell('试穿人\n员脚型', { font: fontBase, border: thinBorder, alignment: { wrapText: true } }), cell(footText, { font: fontBase, border: thinBorder }), '', '']);
+    merges.push({ s: { r: r7, c: 1 }, e: { r: r7, c: 3 } });
+
+    // Row 8: 试穿员+时长
+    addRow([cell('试穿员', { font: fontBase, border: thinBorder }), cell(r.tester||'', { font: fontBase, border: thinBorder }), cell('试穿时长', { font: fontBase, border: thinBorder }), cell((r.duration||'')+'分钟', { font: fontBase, border: thinBorder })]);
+
+    // Row 9: 测试场景（B9:D9 合并）- 显示所有选项
+    const sceneOpts = ['平地通勤','轻度运动','楼梯行走'];
+    const sceneChecked = (r.scene||[]).map(v=>sceneMap[v]||v);
+    let sceneText = sceneOpts.map(opt => (sceneChecked.includes(opt) ? '☑' : '□') + opt).join(' ');
+    if (r.sceneOther) {
+      sceneText += ' ☑' + r.sceneOther;
+    } else {
+      sceneText += ' □其他____';
+    }
+    const r9 = addRow([cell('测试场景', { font: fontBase, border: thinBorder }), cell(sceneText, { font: fontBase, border: thinBorder }), '', '']);
+    merges.push({ s: { r: r9, c: 1 }, e: { r: r9, c: 3 } });
+
+    // Row 10: 满意度总分（B10:D10 合并）
+    const r10 = addRow([cell('满意度总分', { font: fontBase, border: thinBorder }), cell((r.totalScore||0)+' /170', { font: fontBase, border: thinBorder }), '', '']);
+    merges.push({ s: { r: r10, c: 1 }, e: { r: r10, c: 3 } });
+
+    // Row 11-12: 试穿改良建议（A11:A12 合并，B11:D12 合并）
+    const r11 = addRow([cell('试穿改\n良建议', { font: fontBase, border: thinBorder, alignment: { wrapText: true } }), cell(r.suggestion||'', { font: fontBase, border: thinBorder, alignment: { wrapText: true, vertical: 'top' } }), '', '']);
+    merges.push({ s: { r: r11, c: 0 }, e: { r: r11+1, c: 0 } });
+    merges.push({ s: { r: r11, c: 1 }, e: { r: r11+1, c: 3 } });
+    addRow(['', '', '', '']);
+
+    // Row 13: 核心测试项（A13:D13 合并）
+    const r13 = addRow([cell('核心测试项', { font: fontSection, border: thinBorder }), '', '', '']);
+    merges.push({ s: { r: r13, c: 0 }, e: { r: r13, c: 3 } });
+
+    // Row 14: 表头
+    addRow([cell('序号', { font: fontHeader, border: thinBorder, alignment: { horizontal: 'center' } }), cell('试穿测试项目', { font: fontHeader, border: thinBorder }), cell('测试结果二选一', { font: fontHeader, border: thinBorder }), cell('单项评分(1-5分)', { font: fontHeader, border: thinBorder, alignment: { horizontal: 'center' } })]);
+
+    // Row 15-38: 核心项 1-24
     const coreMap = TEMPLATE_ITEM_MAP.filter(t => t.seq <= 24);
     coreMap.forEach(t => {
       const d = (r.items||{})[String(t.itemId)] || {};
-      wsData.push([t.seq, t.name, d.result||'', d.score||'']);
+      addRow([cell(t.seq, { font: fontBase, border: thinBorder, alignment: { horizontal: 'center' } }), cell(t.name, { font: fontBase, border: thinBorder }), cell(d.result||'', { font: fontBase, border: thinBorder }), cell(d.score||'', { font: fontBase, border: thinBorder, alignment: { horizontal: 'center' } })]);
     });
 
-    // 拓展
-    wsData.push(['拓展附加测试项（深度研究可选）','','','']);
-    wsData.push(['序号','试穿测试项目','测试结果','单项评分(1-5分)']);
+    // Row 39: 拓展附加测试项（A39:D39 合并）
+    const r39 = addRow([cell('拓展附加测试项（深度研究可选）', { font: fontSection, border: thinBorder }), '', '', '']);
+    merges.push({ s: { r: r39, c: 0 }, e: { r: r39, c: 3 } });
+
+    // Row 40: 表头（标准模板格式）
+    addRow([cell('序号', { font: fontHeader, border: thinBorder, alignment: { horizontal: 'center' } }), cell('补充舒适度测试项目', { font: fontHeader, border: thinBorder }), cell('结果选项', { font: fontHeader, border: thinBorder }), cell('单项评分(1-5分)', { font: fontHeader, border: thinBorder, alignment: { horizontal: 'center' } })]);
+
+    // Row 41-50: 拓展项 25-34
     const extraMap = TEMPLATE_ITEM_MAP.filter(t => t.seq > 24);
     extraMap.forEach(t => {
       const d = (r.items||{})[String(t.itemId)] || {};
-      wsData.push([t.seq, t.name, d.result||'', d.score||'']);
+      addRow([cell(t.seq, { font: fontBase, border: thinBorder, alignment: { horizontal: 'center' } }), cell(t.name, { font: fontBase, border: thinBorder }), cell(d.result||'', { font: fontBase, border: thinBorder }), cell(d.score||'', { font: fontBase, border: thinBorder, alignment: { horizontal: 'center' } })]);
     });
 
-    // 评分说明
-    wsData.push(['','','','']);
-    wsData.push(['评分说明：','5分=完全舒适','4分=轻微不适','3分=明显不适']);
-    wsData.push(['','2分=严重不适','1分=完全无法穿着','']);
+    // 评分说明（最后3行）
+    addRow([cell('评分说明：', { font: fontBase, border: thinBorder }), cell('5分=完全舒适', { font: fontBase, border: thinBorder }), cell('4分=轻微不适', { font: fontBase, border: thinBorder }), cell('3分=明显不适', { font: fontBase, border: thinBorder })]);
+    addRow([cell('', { font: fontBase, border: thinBorder }), cell('2分=严重不适', { font: fontBase, border: thinBorder }), cell('1分=完全无法穿着', { font: fontBase, border: thinBorder }), cell('', { font: fontBase, border: thinBorder })]);
 
     const ws = XLSX.utils.aoa_to_sheet(wsData);
     ws['!cols'] = [
-      {wch: 11.33},{wch: 32.80},{wch: 25.00},{wch: 15.40}
+      { wch: 11.33 }, { wch: 32.80 }, { wch: 25.00 }, { wch: 15.40 }
     ];
+    ws['!rows'] = [
+      { hpt: 17.65 }, {}, {}, {}, {}, {}, { hpt: 27.75 }, {}, {}, {}, {}, {}, { hpt: 15.0 }
+    ];
+    ws['!merges'] = merges;
+
     XLSX.utils.book_append_sheet(wb, ws, sheetName);
   });
 
@@ -477,7 +538,6 @@ function doExportFormXLSX(recordsToExport){
   XLSX.writeFile(wb, `试穿登记表_${now}.xlsx`);
   toast('✅ 已导出 '+recordsToExport.length+' 条记录');
 }
-
 // ==================== 预览 ====================
 function previewRecord(id){
   const r = records.find(x => x.id === id);
