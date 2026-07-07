@@ -465,16 +465,172 @@ function nextStep(){
   currentStep++;render();window.scrollTo(0,0);
 }
 
+// ==================== 企业微信智能表格 Webhook ====================
+const WEBHOOK_URL = 'https://qyapi.weixin.qq.com/cgi-bin/wedoc/smartsheet/webhook?key=5AjmJ2gZibPoZ7tuqo0Hi0I9fsJDQHxlXvpHgOWNzyNCmEj8opCHGQr1RC5OwiCliKXyTV5PyqB6RJIfwzCCcAe561FvXiyRuspceXIpY225';
+
+// 字段ID映射（基于智能表格schema）
+const FIELD_MAP = {
+  submitTime:   'f1hren',  // 提交时间 (date_time, 毫秒时间戳)
+  tester:       'f2bKsr',  // 试穿人 (text)
+  modelCode:    'f46jy0',  // 鞋款货号 (text)
+  shoeSize:     'f5Jaok',  // 鞋码 (text)
+  footType:     'f74SCw',  // 脚型 (single_select)
+  scene:        'f7nqzc',  // 穿着场景 (text)
+  hardness:     'fAenH6',  // 硬度实测(HC) (text)
+  // 核心测试 ★1~★24 (number)
+  star1:        'fCo2Wz',  // ★1 前掌弯折性
+  star2:        'fGPuMm',  // ★2 前掌厚度感
+  star3:        'fGrYYy',  // ★3 前掌软硬度
+  star4:        'fIVByE',  // ★4 前掌回弹性
+  star5:        'fLJcdo',  // ★5 前掌包裹感
+  star6:        'fNJH0I',  // ★6 前掌空间感
+  star7:        'fOJTes',  // ★7 足弓支撑感
+  star8:        'fQZUmA',  // ★8 足弓贴合度
+  star9:        'fQwEgo',  // ★9 后跟锁定感
+  star10:       'fRgtss',  // ★10 后跟软硬度
+  star11:       'fRzbPm',  // ★11 后跟高度感
+  star12:       'fSNqw1',  // ★12 后跟稳定性
+  star13:       'fU6J40',  // ★13 鞋面透气性
+  star14:       'fWmmqs',  // ★14 鞋面柔软度
+  star15:       'fZ2r6c',  // ★15 鞋面弹性
+  star16:       'fbeCsM',  // ★16 鞋舌舒适度
+  star17:       'fcFIpw',  // ★17 鞋口包裹感
+  star18:       'fcy1gA',  // ★18 鞋垫软硬度
+  star19:       'fdgFep',  // ★19 鞋垫支撑感
+  star20:       'fdvJ72',  // ★20 整体轻便感
+  star21:       'feUNGm',  // ★21 整体平衡感
+  star22:       'fjI6Hd',  // ★22 整体缓震感
+  star23:       'fjsiyH',  // ★23 整体防滑感
+  star24:       'fk1dp5',  // ★24 整体耐磨感
+  // 拓展测试 ★3-1~★3-10 (number)
+  extra1:       'fksqVA',  // ★3-1 外观满意度
+  extra2:       'fnK8I1',  // ★3-2 配色满意度
+  extra3:       'fo31lb',  // ★3-3 材质质感
+  extra4:       'foFcNl',  // ★3-4 做工细节
+  extra5:       'frsdhK',  // ★3-5 穿脱便利性
+  extra6:       'fsQhUZ',  // ★3-6 鞋带/魔术贴
+  extra7:       'ft1wYp',  // ★3-7 长时间舒适度
+  extra8:       'ftgFfv',  // ★3-8 异味情况
+  extra9:       'ftworw',  // ★3-9 尺码准确性
+  extra10:      'fuOghC',  // ★3-10 综合推荐度
+  totalScore:   'fudH9U',  // 舒适总分 (number)
+  comfortLevel: 'fwvF4l',  // 舒适等级 (text)
+  suggestion:   'fyNs6e'   // 改进建议 (text)
+};
+
+// 页面测试项ID → 智能表格字段KEY 的顺序映射
+// 页面核心测试24项（含子项）→ star1~star24
+// 页面拓展测试10项 → extra1~extra10
+const ITEM_FIELD_ORDER = [
+  'star1','star2','star3','star4','star5','star6','star7','star8',
+  'star9','star10','star11','star12','star13','star14','star15','star16',
+  'star17','star18','star19','star20','star21','star22','star23','star24',
+  'extra1','extra2','extra3','extra4','extra5','extra6','extra7','extra8','extra9','extra10'
+];
+
+// 脚型值映射（页面内部值 → 智能表格选项文本）
+const FOOT_TYPE_MAP = {
+  'normal':    '正常足',
+  'high_arch': '高足弓',
+  'flat':      '扁平足',
+  'wide':      '宽脚',
+  'narrow':    '瘦脚'
+};
+
+// 构建Webhook请求数据
+function buildWebhookPayload(){
+  const now = Date.now();
+  const totalScore = getTotalScore();
+  const level = getComfortLevel(totalScore).label;
+
+  // 硬度实测文本
+  const hardnessText = [
+    form.hardnessInsole ? '鞋垫'+form.hardnessInsole+'A' : '',
+    form.hardnessMidsole ? '中底'+form.hardnessMidsole+'C' : '',
+    form.hardnessOutsole ? '外底'+form.hardnessOutsole+'A' : ''
+  ].filter(Boolean).join(' / ') || '';
+
+  // 脚型（单选，取第一个）
+  const footTypeText = form.footType.length > 0 ? FOOT_TYPE_MAP[form.footType[0]] || '正常足' : '正常足';
+
+  // 场景文本
+  const sceneText = form.scene.map(v => sceneMap[v] || v).join('、') + (form.sceneOther ? '、'+form.sceneOther : '');
+
+  // 构建values
+  const values = {};
+  values[FIELD_MAP.submitTime] = String(now);
+  values[FIELD_MAP.tester] = form.tester.trim() || '';
+  values[FIELD_MAP.modelCode] = form.modelCode.trim() || '';
+  values[FIELD_MAP.shoeSize] = form.lastShape.trim() || '';  // 楦型暂存鞋码字段
+  values[FIELD_MAP.footType] = [{ text: footTypeText }];
+  values[FIELD_MAP.scene] = sceneText;
+  values[FIELD_MAP.hardness] = hardnessText;
+
+  // 34项测试评分（按顺序映射）
+  const allItemIds = allItems.map(i => i.id);
+  allItemIds.forEach((itemId, idx) => {
+    if (idx < ITEM_FIELD_ORDER.length) {
+      const fieldKey = ITEM_FIELD_ORDER[idx];
+      const fieldId = FIELD_MAP[fieldKey];
+      const itemData = form.items[itemId];
+      if (itemData && itemData.score) {
+        values[fieldId] = itemData.score;
+      } else {
+        values[fieldId] = 0;
+      }
+    }
+  });
+
+  values[FIELD_MAP.totalScore] = totalScore;
+  values[FIELD_MAP.comfortLevel] = level;
+  values[FIELD_MAP.suggestion] = form.suggestion.trim() || '';
+
+  return {
+    add_records: [{ values: values }]
+  };
+}
+
+// 发送数据到企业微信智能表格
+async function submitToWebhook(){
+  const payload = buildWebhookPayload();
+  try {
+    const resp = await fetch(WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await resp.json();
+    return data.errcode === 0 || data.ret === 0 || resp.ok;
+  } catch(e) {
+    console.error('Webhook submit error:', e);
+    return false;
+  }
+}
+
 function submitForm(){
   if(getCompletedCount()===0)return toast('请至少完成一项测试');
-  saveRecord({
+  const record = {
     modelCode:form.modelCode.trim(),lastShape:form.lastShape.trim(),tester:form.tester.trim(),
     footType:[...form.footType],duration:form.duration,scene:[...form.scene],sceneOther:form.sceneOther.trim(),
     hardnessInsole:form.hardnessInsole,hardnessMidsole:form.hardnessMidsole,hardnessOutsole:form.hardnessOutsole,
     items:JSON.parse(JSON.stringify(form.items)),
     totalScore:getTotalScore(),suggestion:form.suggestion.trim()
+  };
+  saveRecord(record);
+
+  // 异步提交到企业微信智能表格
+  toast('✅ 提交成功！数据同步中...');
+  submitToWebhook().then(ok => {
+    if(ok){
+      toast('✅ 提交成功！数据已同步到智能表格');
+    } else {
+      toast('✅ 本地保存成功（云端同步失败，数据仍在本地）');
+    }
+  }).catch(() => {
+    toast('✅ 本地保存成功（云端同步失败，数据仍在本地）');
   });
-  toast('✅ 提交成功！');setTimeout(()=>{tab='home';render();},1500);
+
+  setTimeout(()=>{tab='home';render();},2000);
 }
 
 function delRecord(id){if(!confirm('确定删除这条记录？'))return;deleteRecord(id);toast('已删除');render();}
