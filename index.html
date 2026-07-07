@@ -69,7 +69,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',sans-
 .btn-page{padding:0 20px;height:34px;line-height:34px;background:#f0f0f0;color:#666;font-size:13px;border-radius:20px;border:none;cursor:pointer;}
 .btn-page.primary{background:var(--accent);color:#fff;}
 
-/* 汇总页 */
+/* 汇总页表格样式 */
+.review-table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px;}
+.review-table th{background:#f5f5f5;color:#666;padding:8px 6px;text-align:left;font-weight:600;border:1px solid #e0e0e0;}
+.review-table td{padding:8px 6px;border:1px solid #e8e8e8;color:#333;}
+.review-table td:nth-child(1){width:36px;text-align:center;color:#999;font-weight:500;}
+.review-table td:nth-child(3){width:90px;text-align:center;}
+.review-table td:nth-child(4){width:50px;text-align:center;font-weight:600;}
+.review-table .score-5{color:#4caf50;}
+.review-table .score-4{color:#8bc34a;}
+.review-table .score-3{color:#ff9800;}
+.review-table .score-2{color:#ff5722;}
+.review-table .score-1{color:#f44336;}
+.review-table .empty{color:#bbb;font-style:italic;}
+.review-table tr:nth-child(even){background:#fafafa;}
+.review-table .category-row{background:#f0f0f0;font-weight:600;color:#666;}
+.review-table .category-row td{border:1px solid #e0e0e0;}
 .summary-block{margin-bottom:16px;padding:14px;background:#f8f8f8;border-radius:8px;}
 .summary-title{font-size:14px;font-weight:600;color:var(--primary);margin-bottom:8px;}
 .summary-row{font-size:13px;color:#555;line-height:2;}
@@ -400,6 +415,33 @@ function renderStep4(c,b){
   const completed=getCompletedCount();
   const level=getComfortLevel(totalScore);
   const pct=Math.round(totalScore/MAX_SCORE*100);
+
+  // 构建表格行
+  let tableRows = '';
+  let seq = 1;
+  // 核心测试
+  tableRows += `<tr class="category-row"><td colspan="4">🔬 核心测试项（${coreItems.length}项）</td></tr>`;
+  coreItems.forEach(test => {
+    const d = form.items[test.id] || {};
+    const result = d.result || '<span class="empty">未填写</span>';
+    const score = d.score || '-';
+    const scoreCls = d.score ? `score-${d.score}` : '';
+    tableRows += `<tr><td>${seq}</td><td>${esc(test.name)}</td><td>${result}</td><td class="${scoreCls}">${score}</td></tr>`;
+    seq++;
+  });
+  // 拓展测试
+  if (extraItems.some(t => form.items[t.id] && form.items[t.id].result)) {
+    tableRows += `<tr class="category-row"><td colspan="4">🔬 拓展测试项（${extraItems.length}项，选填）</td></tr>`;
+    extraItems.forEach(test => {
+      const d = form.items[test.id] || {};
+      const result = d.result || '<span class="empty">未填写</span>';
+      const score = d.score || '-';
+      const scoreCls = d.score ? `score-${d.score}` : '';
+      tableRows += `<tr><td>${seq}</td><td>${esc(test.name)}</td><td>${result}</td><td class="${scoreCls}">${score}</td></tr>`;
+      seq++;
+    });
+  }
+
   c.innerHTML=`
     <div class="card"><div class="card-title">✅ 确认提交</div>
       <div class="summary-block"><div class="summary-title">基础信息</div>
@@ -417,6 +459,13 @@ function renderStep4(c,b){
         <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
         <div class="summary-row" style="margin-top:8px"><span class="s-label">舒适等级：</span><span class="comfort-grade ${level.cls}">${level.label}</span> <span style="font-size:12px;color:#888">${level.desc}</span></div>
         <div style="font-size:12px;color:#999;margin-top:8px">标准：≥153优秀 / ≥136良好 / ≥119一般 / <119需改进</div>
+      </div>
+      <div class="summary-block" style="overflow-x:auto;">
+        <div class="summary-title">📋 试穿测试明细</div>
+        <table class="review-table">
+          <thead><tr><th>序号</th><th>试穿测试项目</th><th>测试结果</th><th>评分</th></tr></thead>
+          <tbody>${tableRows}</tbody>
+        </table>
       </div>
       <div class="field"><div class="field-label">试穿改良建议</div>
         <textarea class="textarea" id="f_suggestion" placeholder="请输入改良建议或试穿感受..." maxlength="500" oninput="form.suggestion=this.value;document.getElementById('charCount').textContent=this.value.length">${esc(form.suggestion)}</textarea>
@@ -599,7 +648,10 @@ async function submitToWebhook(){
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    const data = await resp.json();
+    const text = await resp.text();
+    let data = {};
+    try { data = JSON.parse(text); } catch(e) {}
+    console.log('Webhook response:', resp.status, text);
     return data.errcode === 0 || data.ret === 0 || resp.ok;
   } catch(e) {
     console.error('Webhook submit error:', e);
