@@ -512,7 +512,7 @@ function renderExport(c,b){
   const records=getRecords();
   const models=new Set();let totalScore=0,sc=0;
   records.forEach(r=>{if(r.modelCode)models.add(r.modelCode);if(r.totalScore){totalScore+=r.totalScore;sc++;}});
-  c.innerHTML=`<div class="tab-bar"><div class="tab-item" onclick="switchTab('home')">📝 填写评价</div><div class="tab-item" onclick="switchTab('history')">📊 提交记录</div><div class="tab-item active">📥 导出数据</div></div><div class="card"><div class="card-title">📥 数据导出</div><div class="stat-row"><div class="stat-item"><div class="stat-num">${records.length}</div><div class="stat-label">总记录数</div></div><div class="stat-item"><div class="stat-num">${sc>0?(totalScore/sc).toFixed(1):'-'}</div><div class="stat-label">平均满意度</div></div><div class="stat-item"><div class="stat-num">${models.size}</div><div class="stat-label">涉及鞋款</div></div></div></div><div class="card"><div class="card-title">导出选项</div><div class="export-option" onclick="exportCSV()"><div class="option-icon">📊</div><div class="option-info"><div class="option-title">下载横向汇总表（CSV）</div><div class="option-desc">每行一条记录，适合数据汇总分析</div></div><div class="option-arrow">›</div></div><div class="export-option" onclick="exportDetailXLSX()"><div class="option-icon">📋</div><div class="option-info"><div class="option-title">下载纵向明细表（Excel）</div><div class="option-desc">每行一个测试项，类似评价表格式，一目了然</div></div><div class="option-arrow">›</div></div><div class="export-option" onclick="copyCSV()"><div class="option-icon">📋</div><div class="option-info"><div class="option-title">复制为表格文本</div><div class="option-desc">复制后粘贴到 Excel 即可</div></div><div class="option-arrow">›</div></div></div><div class="card" style="background:#f0faf0"><div class="card-title">💡 舒适等级标准</div><div style="font-size:13px;color:#666;line-height:2"><span class="comfort-grade grade-excellent">优秀</span> ≥153分：舒适度极佳，推荐量产<br><span class="comfort-grade grade-good">良好</span> ≥136分：整体舒适，minor issues可优化<br><span class="comfort-grade grade-ok">一般</span> ≥119分：基本可穿，存在明显痛点需改进<br><span class="comfort-grade grade-poor">需改进</span> <119分：舒适度不足，需大幅改进</div></div>`;
+  c.innerHTML=`<div class="tab-bar"><div class="tab-item" onclick="switchTab('home')">📝 填写评价</div><div class="tab-item" onclick="switchTab('history')">📊 提交记录</div><div class="tab-item active">📥 导出数据</div></div><div class="card"><div class="card-title">📥 数据导出</div><div class="stat-row"><div class="stat-item"><div class="stat-num">${records.length}</div><div class="stat-label">总记录数</div></div><div class="stat-item"><div class="stat-num">${sc>0?(totalScore/sc).toFixed(1):'-'}</div><div class="stat-label">平均满意度</div></div><div class="stat-item"><div class="stat-num">${models.size}</div><div class="stat-label">涉及鞋款</div></div></div></div><div class="card"><div class="card-title">导出选项</div><div class="export-option" onclick="exportCSV()"><div class="option-icon">📊</div><div class="option-info"><div class="option-title">下载横向汇总表（CSV）</div><div class="option-desc">每行一条记录，适合数据汇总分析</div></div><div class="option-arrow">›</div></div><div class="export-option" onclick="exportFormXLSX()"><div class="option-icon">📄</div><div class="option-info"><div class="option-title">下载表单评价表（Excel）</div><div class="option-desc">纸质表单风格，含基础信息栏+测试项表格，适合打印存档</div></div><div class="option-arrow">›</div></div><div class="export-option" onclick="copyCSV()"><div class="option-icon">📋</div><div class="option-info"><div class="option-title">复制为表格文本</div><div class="option-desc">复制后粘贴到 Excel 即可</div></div><div class="option-arrow">›</div></div></div><div class="card" style="background:#f0faf0"><div class="card-title">💡 舒适等级标准</div><div style="font-size:13px;color:#666;line-height:2"><span class="comfort-grade grade-excellent">优秀</span> ≥153分：舒适度极佳，推荐量产<br><span class="comfort-grade grade-good">良好</span> ≥136分：整体舒适，minor issues可优化<br><span class="comfort-grade grade-ok">一般</span> ≥119分：基本可穿，存在明显痛点需改进<br><span class="comfort-grade grade-poor">需改进</span> <119分：舒适度不足，需大幅改进</div></div>`;
   b.innerHTML='';
 }
 
@@ -721,6 +721,215 @@ function buildCSV(){
   });
   return'\uFEFF'+lines.join('\n');
 }
+// === FORM-STYLE XLSX EXPORT (纸质表单风格) ===
+function exportFormXLSX() {
+  const records = getRecords();
+  if (records.length === 0) { toast('暂无数据可导出'); return; }
+
+  if (typeof XLSX === 'undefined') {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js';
+    script.onload = () => { doExportFormXLSX(records); };
+    script.onerror = () => { toast('加载 Excel 库失败，请检查网络'); };
+    document.head.appendChild(script);
+  } else {
+    doExportFormXLSX(records);
+  }
+}
+
+function doExportFormXLSX(records) {
+  const wb = XLSX.utils.book_new();
+
+  records.forEach((r, idx) => {
+    const rows = [];
+    const merges = [];
+    let rowIdx = 0;
+
+    // 1) 标题行：运动休闲鞋整鞋舒适度主观试穿评价表
+    rows.push(['运动休闲鞋整鞋舒适度主观试穿评价表']);
+    merges.push({ s:{r:rowIdx,c:0}, e:{r:rowIdx,c:7} });
+    rowIdx++;
+
+    // 2) 基础信息栏 标题
+    rows.push(['基础信息栏']);
+    merges.push({ s:{r:rowIdx,c:0}, e:{r:rowIdx,c:7} });
+    rowIdx++;
+
+    // 3) 基础信息内容（按截图布局）
+    // 行1: 鞋款货号 | (值) | | | 楦型 | (值) | |
+    const modelVal = r.modelCode || '';
+    const lastVal = r.lastShape || '';
+    rows.push(['鞋款货号', modelVal, '', '', '楦型', lastVal, '', '']);
+    merges.push({ s:{r:rowIdx,c:1}, e:{r:rowIdx,c:3} });
+    merges.push({ s:{r:rowIdx,c:5}, e:{r:rowIdx,c:7} });
+    rowIdx++;
+
+    // 行2: 试穿人员 | (值) | | | 脚型 | □正常足 □高足弓 □扁平足 □宽脚 □瘦脚 |
+    const testerVal = r.tester || '';
+    const footTypes = (r.footType || []).map(v => footMap[v] || v);
+    const footStr = ['正常足','高足弓','扁平足','宽脚','瘦脚'].map(ft =>
+      (footTypes.includes(ft) ? '☑' : '□') + ft
+    ).join(' ');
+    rows.push(['试穿人员', testerVal, '', '', '脚型', footStr, '', '']);
+    merges.push({ s:{r:rowIdx,c:1}, e:{r:rowIdx,c:3} });
+    merges.push({ s:{r:rowIdx,c:5}, e:{r:rowIdx,c:7} });
+    rowIdx++;
+
+    // 行3: 试穿时长 | ___分钟 | | 测试场景 | (值) | | |
+    const durationVal = (r.duration || '') + ' 分钟';
+    const sceneVal = (r.scene || []).map(v => sceneMap[v] || v).join('、') || '';
+    rows.push(['试穿时长', durationVal, '', '', '测试场景', sceneVal, '', '']);
+    merges.push({ s:{r:rowIdx,c:1}, e:{r:rowIdx,c:3} });
+    merges.push({ s:{r:rowIdx,c:5}, e:{r:rowIdx,c:7} });
+    rowIdx++;
+
+    // 行4: 硬度信息行（替换原来的测试场景复选框行，避免重复）
+    const hardnessStr = [];
+    if (r.hardnessInsole) hardnessStr.push('鞋垫硬度(ShoreA): ' + r.hardnessInsole);
+    if (r.hardnessMidsole) hardnessStr.push('中底硬度(ShoreC): ' + r.hardnessMidsole);
+    if (r.hardnessOutsole) hardnessStr.push('外底硬度(ShoreA): ' + r.hardnessOutsole);
+    const hardnessVal = hardnessStr.join(' ｜ ') || '';
+    rows.push(['硬度实测', hardnessVal, '', '', '', '', '', '']);
+    merges.push({ s:{r:rowIdx,c:1}, e:{r:rowIdx,c:7} });
+    rowIdx++;
+
+    // 行5: 满意度总分 | ___ /170 | | | | | | |
+    const totalScore = r.totalScore || 0;
+    rows.push(['满意度总分', totalScore + ' /170', '', '', '', '', '', '']);
+    merges.push({ s:{r:rowIdx,c:1}, e:{r:rowIdx,c:7} });
+    rowIdx++;
+
+    // 行6: 试穿改良建议 | (值) | | | | | | |
+    const suggestionVal = r.suggestion || '';
+    rows.push(['试穿改良建议', suggestionVal, '', '', '', '', '', '']);
+    merges.push({ s:{r:rowIdx,c:1}, e:{r:rowIdx,c:7} });
+    rowIdx++;
+
+    // 空行分隔
+    rows.push([]);
+    rowIdx++;
+
+    // 4) 核心测试项 标题
+    rows.push(['核心测试项']);
+    merges.push({ s:{r:rowIdx,c:0}, e:{r:rowIdx,c:7} });
+    rowIdx++;
+
+    // 5) 表头
+    rows.push(['序号', '试穿测试项目', '', '测试结果二选一', '', '', '单项评分(1-5分)', '']);
+    merges.push({ s:{r:rowIdx,c:1}, e:{r:rowIdx,c:2} });
+    merges.push({ s:{r:rowIdx,c:3}, e:{r:rowIdx,c:5} });
+    merges.push({ s:{r:rowIdx,c:6}, e:{r:rowIdx,c:7} });
+    rowIdx++;
+
+    // 6) 核心测试项数据
+    coreItems.forEach((item, i) => {
+      const d = r.items && r.items[item.id] || {};
+      const result = d.result || '';
+      const score = d.score || '';
+      rows.push([String(i+1), item.name, '', result, '', '', score, '']);
+      merges.push({ s:{r:rowIdx,c:1}, e:{r:rowIdx,c:2} });
+      merges.push({ s:{r:rowIdx,c:3}, e:{r:rowIdx,c:5} });
+      merges.push({ s:{r:rowIdx,c:6}, e:{r:rowIdx,c:7} });
+      rowIdx++;
+    });
+
+    // 空行
+    rows.push([]);
+    rowIdx++;
+
+    // 7) 拓展测试项 标题（如果有数据）
+    const hasExtra = extraItems.some(item => {
+      const d = r.items && r.items[item.id];
+      return d && (d.result || d.score);
+    });
+    if (hasExtra) {
+      rows.push(['拓展测试项']);
+      merges.push({ s:{r:rowIdx,c:0}, e:{r:rowIdx,c:7} });
+      rowIdx++;
+
+      rows.push(['序号', '试穿测试项目', '', '测试结果二选一', '', '', '单项评分(1-5分)', '']);
+      merges.push({ s:{r:rowIdx,c:1}, e:{r:rowIdx,c:2} });
+      merges.push({ s:{r:rowIdx,c:3}, e:{r:rowIdx,c:5} });
+      merges.push({ s:{r:rowIdx,c:6}, e:{r:rowIdx,c:7} });
+      rowIdx++;
+
+      extraItems.forEach((item, i) => {
+        const d = r.items && r.items[item.id] || {};
+        const result = d.result || '';
+        const score = d.score || '';
+        rows.push([String(i+1), item.name, '', result, '', '', score, '']);
+        merges.push({ s:{r:rowIdx,c:1}, e:{r:rowIdx,c:2} });
+        merges.push({ s:{r:rowIdx,c:3}, e:{r:rowIdx,c:5} });
+        merges.push({ s:{r:rowIdx,c:6}, e:{r:rowIdx,c:7} });
+        rowIdx++;
+      });
+    }
+
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+
+    // 列宽设置
+    ws['!cols'] = [
+      { wch: 8 },   // 序号
+      { wch: 22 },  // 项目名左半
+      { wch: 22 },  // 项目名右半
+      { wch: 14 },  // 结果左
+      { wch: 14 },  // 结果中
+      { wch: 14 },  // 结果右
+      { wch: 12 },  // 评分左
+      { wch: 12 }   // 评分右
+    ];
+
+    ws['!merges'] = merges;
+
+    // 设置样式（通过单元格属性）
+    const range = XLSX.utils.decode_range(ws['!ref']);
+    for (let R = range.s.r; R <= range.e.r; R++) {
+      for (let C = range.s.c; C <= range.e.c; C++) {
+        const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
+        if (!ws[cellRef]) continue;
+        const cell = ws[cellRef];
+
+        // 默认样式
+        cell.s = cell.s || {};
+        cell.s.font = cell.s.font || {};
+        cell.s.alignment = cell.s.alignment || {};
+        cell.s.border = cell.s.border || {};
+
+        // 所有单元格居中+边框
+        cell.s.alignment.horizontal = 'center';
+        cell.s.alignment.vertical = 'center';
+        cell.s.border.top = { style: 'thin', color: { rgb: '000000' } };
+        cell.s.border.bottom = { style: 'thin', color: { rgb: '000000' } };
+        cell.s.border.left = { style: 'thin', color: { rgb: '000000' } };
+        cell.s.border.right = { style: 'thin', color: { rgb: '000000' } };
+
+        // 标题行样式
+        if (R === 0) {
+          cell.s.font.bold = true;
+          cell.s.font.sz = 14;
+        }
+        // 基础信息栏 / 核心测试项 标题行
+        if (R === 1 || (cell.v && (cell.v === '基础信息栏' || cell.v === '核心测试项' || cell.v === '拓展测试项'))) {
+          cell.s.font.bold = true;
+          cell.s.font.sz = 12;
+        }
+        // 表头行
+        if (cell.v === '序号') {
+          cell.s.font.bold = true;
+        }
+      }
+    }
+
+    const sheetName = (r.modelCode || '记录' + (idx + 1)).replace(/[\\\/\?\*\[\]]/g, '').substring(0, 31);
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  });
+
+  const d = new Date();
+  const filename = `试穿评价表_${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}.xlsx`;
+  XLSX.writeFile(wb, filename);
+  toast('✅ 表单风格Excel已下载');
+}
+
 // === DETAIL XLSX EXPORT (纵向明细表) ===
 function exportDetailXLSX() {
   const records = getRecords();
