@@ -512,7 +512,7 @@ function renderExport(c,b){
   const records=getRecords();
   const models=new Set();let totalScore=0,sc=0;
   records.forEach(r=>{if(r.modelCode)models.add(r.modelCode);if(r.totalScore){totalScore+=r.totalScore;sc++;}});
-  c.innerHTML=`<div class="tab-bar"><div class="tab-item" onclick="switchTab('home')">📝 填写评价</div><div class="tab-item" onclick="switchTab('history')">📊 提交记录</div><div class="tab-item active">📥 导出数据</div></div><div class="card"><div class="card-title">📥 数据导出</div><div class="stat-row"><div class="stat-item"><div class="stat-num">${records.length}</div><div class="stat-label">总记录数</div></div><div class="stat-item"><div class="stat-num">${sc>0?(totalScore/sc).toFixed(1):'-'}</div><div class="stat-label">平均满意度</div></div><div class="stat-item"><div class="stat-num">${models.size}</div><div class="stat-label">涉及鞋款</div></div></div></div><div class="card"><div class="card-title">导出选项</div><div class="export-option" onclick="exportCSV()"><div class="option-icon">📊</div><div class="option-info"><div class="option-title">下载横向汇总表（CSV）</div><div class="option-desc">每行一条记录，适合数据汇总分析</div></div><div class="option-arrow">›</div></div><div class="export-option" onclick="exportFormXLSX()"><div class="option-icon">📄</div><div class="option-info"><div class="option-title">下载表单评价表（Excel）</div><div class="option-desc">纸质表单风格，含基础信息栏+测试项表格，适合打印存档</div></div><div class="option-arrow">›</div></div><div class="export-option" onclick="copyCSV()"><div class="option-icon">📋</div><div class="option-info"><div class="option-title">复制为表格文本</div><div class="option-desc">复制后粘贴到 Excel 即可</div></div><div class="option-arrow">›</div></div></div><div class="card" style="background:#f0faf0"><div class="card-title">💡 舒适等级标准</div><div style="font-size:13px;color:#666;line-height:2"><span class="comfort-grade grade-excellent">优秀</span> ≥153分：舒适度极佳，推荐量产<br><span class="comfort-grade grade-good">良好</span> ≥136分：整体舒适，minor issues可优化<br><span class="comfort-grade grade-ok">一般</span> ≥119分：基本可穿，存在明显痛点需改进<br><span class="comfort-grade grade-poor">需改进</span> <119分：舒适度不足，需大幅改进</div></div>`;
+  c.innerHTML=`<div class="tab-bar"><div class="tab-item" onclick="switchTab('home')">📝 填写评价</div><div class="tab-item" onclick="switchTab('history')">📊 提交记录</div><div class="tab-item active">📥 导出数据</div></div><div class="card"><div class="card-title">📥 数据导出</div><div class="stat-row"><div class="stat-item"><div class="stat-num">${records.length}</div><div class="stat-label">总记录数</div></div><div class="stat-item"><div class="stat-num">${sc>0?(totalScore/sc).toFixed(1):'-'}</div><div class="stat-label">平均满意度</div></div><div class="stat-item"><div class="stat-num">${models.size}</div><div class="stat-label">涉及鞋款</div></div></div></div><div class="card"><div class="card-title">导出选项</div><div class="export-option" onclick="exportCSV()"><div class="option-icon">📊</div><div class="option-info"><div class="option-title">下载横向汇总表（CSV）</div><div class="option-desc">每行一条记录，适合数据汇总分析</div></div><div class="option-arrow">›</div></div><div class="export-option" onclick="exportFormXLSX()"><div class="option-icon">📄</div><div class="option-info"><div class="option-title">下载试穿登记表（Excel）</div><div class="option-desc">按标准模板格式生成，A4打印即用，含完整基础信息+34项测试</div></div><div class="option-arrow">›</div></div><div class="export-option" onclick="copyCSV()"><div class="option-icon">📋</div><div class="option-info"><div class="option-title">复制为表格文本</div><div class="option-desc">复制后粘贴到 Excel 即可</div></div><div class="option-arrow">›</div></div></div><div class="card" style="background:#f0faf0"><div class="card-title">💡 舒适等级标准</div><div style="font-size:13px;color:#666;line-height:2"><span class="comfort-grade grade-excellent">优秀</span> ≥153分：舒适度极佳，推荐量产<br><span class="comfort-grade grade-good">良好</span> ≥136分：整体舒适，minor issues可优化<br><span class="comfort-grade grade-ok">一般</span> ≥119分：基本可穿，存在明显痛点需改进<br><span class="comfort-grade grade-poor">需改进</span> <119分：舒适度不足，需大幅改进</div></div>`;
   b.innerHTML='';
 }
 
@@ -737,151 +737,190 @@ function exportFormXLSX() {
   }
 }
 
+// 模板定义的34项测试（与H5页面的item.id映射关系）
+// 模板序号→H5 item.id 的映射
+const TEMPLATE_ITEM_MAP = [
+  // 核心测试项 1-24
+  { seq:1,  itemId:1,   name:'鞋面整体的舒适度',            opts:'舒适 / 不舒适' },
+  { seq:2,  itemId:2,   name:'内里整体的舒适度',            opts:'舒适 / 不舒适' },
+  { seq:3,  itemId:3,   name:'鞋垫（趟底）整体的舒适度',    opts:'舒适 / 不舒适' },
+  { seq:4,  itemId:'3-1', name:'鞋垫软硬度感知',            opts:'过软/适中/偏硬' },
+  { seq:5,  itemId:'3-2', name:'穿30min后鞋垫是否塌陷',     opts:'是 / 否' },
+  { seq:6,  itemId:4,   name:'走路时鞋子舒适度和整体体感',  opts:'舒适 / 不舒适' },
+  { seq:7,  itemId:5,   name:'鞋底前掌弯折是否板脚',        opts:'会 / 不会' },
+  { seq:8,  itemId:6,   name:'前掌1/3处能否自然弯折',       opts:'舒适 / 不舒适' },
+  { seq:9,  itemId:7,   name:'鞋中腰足弓支撑位置与贴合度',  opts:'好 / 不好' },
+  { seq:10, itemId:8,   name:'鞋底止滑性能体感',            opts:'好 / 不好' },
+  { seq:11, itemId:9,   name:'鞋底耐磨性能长期行走体感',    opts:'是 / 否' },
+  { seq:12, itemId:10,  name:'前掌脚趾活动空间是否充足',    opts:'是 / 否' },
+  { seq:13, itemId:11,  name:'鞋前掌是否磨脚',              opts:'是 / 否' },
+  { seq:14, itemId:12,  name:'鞋后跟或后跟内里是否磨脚',    opts:'是 / 否' },
+  { seq:15, itemId:13,  name:'鞋帮脚踝位置是否磨脚',        opts:'是 / 否' },
+  { seq:16, itemId:14,  name:'行走过程后跟是否滑跟脱脚',    opts:'是 / 否' },
+  { seq:17, itemId:15,  name:'足底压力分布是否均匀',        opts:'会 / 不会' },
+  { seq:18, itemId:16,  name:'鞋前掌包裹是否过松晃脚',      opts:'好 / 不好' },
+  { seq:19, itemId:17,  name:'鞋后跟包裹锁定效果',          opts:'会 / 不会' },
+  { seq:20, itemId:18,  name:'鞋身透气性，是否闷热捂脚',    opts:'会 / 不会' },
+  { seq:21, itemId:19,  name:'整鞋重量体感，行走是否笨重',  opts:'会 / 不会' },
+  { seq:22, itemId:20,  name:'长时间行走身体是否后仰失衡',  opts:'会 / 不会' },
+  { seq:23, itemId:21,  name:'单腿站立中底侧倾感',          opts:'无/轻微/明显' },
+  { seq:24, itemId:22,  name:'脱袜后足部是否存在压痕、磨红痕迹', opts:'有 / 没有' },
+  // 拓展附加测试项 25-34
+  { seq:25, itemId:23,  name:'鞋舌对脚背的压迫感',          opts:'无压迫/轻微压迫/明显挤压' },
+  { seq:26, itemId:24,  name:'鞋口后帮跟腱摩擦不适感',      opts:'顺滑/轻微摩擦/刺痛磨皮' },
+  { seq:27, itemId:25,  name:'出汗后内里黏脚程度',          opts:'干爽/轻微黏腻/严重闷黏' },
+  { seq:28, itemId:26,  name:'上下楼梯时前掌顶脚情况',      opts:'无顶脚/轻微顶脚/强烈挤压' },
+  { seq:29, itemId:27,  name:'长时间行走后小腿疲劳度',      opts:'无疲劳/轻微酸胀/明显酸痛' },
+  { seq:30, itemId:28,  name:'湿地面行走抓地安全感',        opts:'稳定/轻微打滑/容易打滑' },
+  { seq:31, itemId:29,  name:'鞋垫压缩回弹感知\n（穿前vs穿30min后跟高差）', opts:'＜2mm/2-5mm/＞5mm' },
+  { seq:32, itemId:30,  name:'中底弯折点位置判定',          opts:'前1/3跖骨处/偏后/偏前' },
+  { seq:33, itemId:31,  name:'疲劳态复评\n（60min后重测第4、14、25项）', opts:'同原项规则' },
+  { seq:34, itemId:32,  name:'路感清晰度',                  opts:'模糊/适中/清晰' },
+];
+
 function doExportFormXLSX(records) {
   const wb = XLSX.utils.book_new();
 
   records.forEach((r, idx) => {
     const rows = [];
     const merges = [];
-    let rowIdx = 0;
+    let ri = 0; // row index (0-based)
 
-    // 1) 标题行：运动休闲鞋整鞋舒适度主观试穿评价表
-    rows.push(['运动休闲鞋整鞋舒适度主观试穿评价表']);
-    merges.push({ s:{r:rowIdx,c:0}, e:{r:rowIdx,c:7} });
-    rowIdx++;
+    // Row 0: 标题 (A1:D1 merged)
+    rows.push(['运动休闲鞋整鞋舒适度主观试穿评价表', '', '', '']);
+    merges.push({ s:{r:ri,c:0}, e:{r:ri,c:3} });
+    ri++;
 
-    // 2) 基础信息栏 标题
-    rows.push(['基础信息栏']);
-    merges.push({ s:{r:rowIdx,c:0}, e:{r:rowIdx,c:7} });
-    rowIdx++;
+    // Row 1: 基础信息栏 (A2:D2 merged)
+    rows.push(['基础信息栏', '', '', '']);
+    merges.push({ s:{r:ri,c:0}, e:{r:ri,c:3} });
+    ri++;
 
-    // 3) 基础信息内容（按截图布局）
-    // 行1: 鞋款货号 | (值) | | | 楦型 | (值) | |
+    // Row 2: 鞋款货号 | ____ | 楦型 | ____
     const modelVal = r.modelCode || '';
     const lastVal = r.lastShape || '';
-    rows.push(['鞋款货号', modelVal, '', '', '楦型', lastVal, '', '']);
-    merges.push({ s:{r:rowIdx,c:1}, e:{r:rowIdx,c:3} });
-    merges.push({ s:{r:rowIdx,c:5}, e:{r:rowIdx,c:7} });
-    rowIdx++;
+    rows.push(['鞋款货号', modelVal || '', '楦型', lastVal || '']);
+    ri++;
 
-    // 行2: 试穿人员 | (值) | | | 脚型 | □正常足 □高足弓 □扁平足 □宽脚 □瘦脚 |
-    const testerVal = r.tester || '';
+    // Row 3: 鞋垫硬度
+    const hardnessInsole = r.hardnessInsole || '';
+    rows.push(['鞋垫硬度', (hardnessInsole ? hardnessInsole : '____') + ' Shore A（参考：25-35超软/36-45适中/46-60偏硬）', '', '']);
+    merges.push({ s:{r:ri,c:1}, e:{r:ri,c:3} });
+    ri++;
+
+    // Row 4: 外底硬度
+    const hardnessOutsole = r.hardnessOutsole || '';
+    rows.push(['外底硬度', (hardnessOutsole ? hardnessOutsole : '____') + ' Shore A（参考：55-65耐磨止滑）', '', '']);
+    merges.push({ s:{r:ri,c:1}, e:{r:ri,c:3} });
+    ri++;
+
+    // Row 5: 中底硬度
+    const hardnessMidsole = r.hardnessMidsole || '';
+    rows.push(['中底硬度', (hardnessMidsole ? hardnessMidsole : '____') + ' Shore C（参考：40-50通勤甜区/51-60运动支撑）', '', '']);
+    merges.push({ s:{r:ri,c:1}, e:{r:ri,c:3} });
+    ri++;
+
+    // Row 6: 试穿人员脚型
     const footTypes = (r.footType || []).map(v => footMap[v] || v);
     const footStr = ['正常足','高足弓','扁平足','宽脚','瘦脚'].map(ft =>
       (footTypes.includes(ft) ? '☑' : '□') + ft
     ).join(' ');
-    rows.push(['试穿人员', testerVal, '', '', '脚型', footStr, '', '']);
-    merges.push({ s:{r:rowIdx,c:1}, e:{r:rowIdx,c:3} });
-    merges.push({ s:{r:rowIdx,c:5}, e:{r:rowIdx,c:7} });
-    rowIdx++;
+    rows.push(['试穿人\n员脚型', footStr, '', '']);
+    merges.push({ s:{r:ri,c:1}, e:{r:ri,c:3} });
+    ri++;
 
-    // 行3: 试穿时长 | ___分钟 | | 测试场景 | (值) | | |
+    // Row 7: 试穿员 | ____ | 试穿时长 | ____
+    const testerVal = r.tester || '';
     const durationVal = (r.duration || '') + ' 分钟';
-    const sceneVal = (r.scene || []).map(v => sceneMap[v] || v).join('、') || '';
-    rows.push(['试穿时长', durationVal, '', '', '测试场景', sceneVal, '', '']);
-    merges.push({ s:{r:rowIdx,c:1}, e:{r:rowIdx,c:3} });
-    merges.push({ s:{r:rowIdx,c:5}, e:{r:rowIdx,c:7} });
-    rowIdx++;
+    rows.push(['试穿员', testerVal || '', '试穿时长', durationVal]);
+    ri++;
 
-    // 行4: 硬度信息行（替换原来的测试场景复选框行，避免重复）
-    const hardnessStr = [];
-    if (r.hardnessInsole) hardnessStr.push('鞋垫硬度(ShoreA): ' + r.hardnessInsole);
-    if (r.hardnessMidsole) hardnessStr.push('中底硬度(ShoreC): ' + r.hardnessMidsole);
-    if (r.hardnessOutsole) hardnessStr.push('外底硬度(ShoreA): ' + r.hardnessOutsole);
-    const hardnessVal = hardnessStr.join(' ｜ ') || '';
-    rows.push(['硬度实测', hardnessVal, '', '', '', '', '', '']);
-    merges.push({ s:{r:rowIdx,c:1}, e:{r:rowIdx,c:7} });
-    rowIdx++;
+    // Row 8: 测试场景 (复选框)
+    const scenes = (r.scene || []).map(v => sceneMap[v] || v);
+    const sceneStr = '□平地通勤 □轻度运动 □楼梯行走 □其他____';
+    // 如果用户选了场景，高亮已选项
+    let sceneDisplay = sceneStr;
+    if (scenes.length > 0) {
+      sceneDisplay = ['平地通勤','轻度运动','楼梯行走'].map(sc =>
+        (scenes.includes(sc) ? '☑' : '□') + sc
+      ).join(' ') + ' □其他____';
+    }
+    rows.push(['测试场景', sceneDisplay, '', '']);
+    merges.push({ s:{r:ri,c:1}, e:{r:ri,c:3} });
+    ri++;
 
-    // 行5: 满意度总分 | ___ /170 | | | | | | |
+    // Row 9: 满意度总分
     const totalScore = r.totalScore || 0;
-    rows.push(['满意度总分', totalScore + ' /170', '', '', '', '', '', '']);
-    merges.push({ s:{r:rowIdx,c:1}, e:{r:rowIdx,c:7} });
-    rowIdx++;
+    rows.push(['满意度总分', totalScore + ' /170', '', '']);
+    merges.push({ s:{r:ri,c:1}, e:{r:ri,c:3} });
+    ri++;
 
-    // 行6: 试穿改良建议 | (值) | | | | | | |
+    // Row 10-11: 试穿改良建议 (A11:A12 merged, B11:D11 merged, B12:D12 merged)
     const suggestionVal = r.suggestion || '';
-    rows.push(['试穿改良建议', suggestionVal, '', '', '', '', '', '']);
-    merges.push({ s:{r:rowIdx,c:1}, e:{r:rowIdx,c:7} });
-    rowIdx++;
+    rows.push(['试穿改\n良建议', suggestionVal, '', '']);
+    merges.push({ s:{r:ri,c:0}, e:{r:ri+1,c:0} });
+    merges.push({ s:{r:ri,c:1}, e:{r:ri,c:3} });
+    ri++;
+    rows.push(['', '', '', '']);
+    merges.push({ s:{r:ri,c:1}, e:{r:ri,c:3} });
+    ri++;
 
-    // 空行分隔
-    rows.push([]);
-    rowIdx++;
+    // Row 12: 核心测试项 (A13:D13 merged)
+    rows.push(['核心测试项', '', '', '']);
+    merges.push({ s:{r:ri,c:0}, e:{r:ri,c:3} });
+    ri++;
 
-    // 4) 核心测试项 标题
-    rows.push(['核心测试项']);
-    merges.push({ s:{r:rowIdx,c:0}, e:{r:rowIdx,c:7} });
-    rowIdx++;
+    // Row 13: 表头
+    rows.push(['序号', '试穿测试项目', '测试结果二选一', '单项评分(1-5分)']);
+    ri++;
 
-    // 5) 表头
-    rows.push(['序号', '试穿测试项目', '', '测试结果二选一', '', '', '单项评分(1-5分)', '']);
-    merges.push({ s:{r:rowIdx,c:1}, e:{r:rowIdx,c:2} });
-    merges.push({ s:{r:rowIdx,c:3}, e:{r:rowIdx,c:5} });
-    merges.push({ s:{r:rowIdx,c:6}, e:{r:rowIdx,c:7} });
-    rowIdx++;
-
-    // 6) 核心测试项数据
-    coreItems.forEach((item, i) => {
-      const d = r.items && r.items[item.id] || {};
+    // Rows 14-37: 核心测试项 1-24
+    for (let i = 0; i < 24; i++) {
+      const tpl = TEMPLATE_ITEM_MAP[i];
+      const d = r.items && r.items[tpl.itemId] || {};
       const result = d.result || '';
       const score = d.score || '';
-      rows.push([String(i+1), item.name, '', result, '', '', score, '']);
-      merges.push({ s:{r:rowIdx,c:1}, e:{r:rowIdx,c:2} });
-      merges.push({ s:{r:rowIdx,c:3}, e:{r:rowIdx,c:5} });
-      merges.push({ s:{r:rowIdx,c:6}, e:{r:rowIdx,c:7} });
-      rowIdx++;
-    });
-
-    // 空行
-    rows.push([]);
-    rowIdx++;
-
-    // 7) 拓展测试项 标题（如果有数据）
-    const hasExtra = extraItems.some(item => {
-      const d = r.items && r.items[item.id];
-      return d && (d.result || d.score);
-    });
-    if (hasExtra) {
-      rows.push(['拓展测试项']);
-      merges.push({ s:{r:rowIdx,c:0}, e:{r:rowIdx,c:7} });
-      rowIdx++;
-
-      rows.push(['序号', '试穿测试项目', '', '测试结果二选一', '', '', '单项评分(1-5分)', '']);
-      merges.push({ s:{r:rowIdx,c:1}, e:{r:rowIdx,c:2} });
-      merges.push({ s:{r:rowIdx,c:3}, e:{r:rowIdx,c:5} });
-      merges.push({ s:{r:rowIdx,c:6}, e:{r:rowIdx,c:7} });
-      rowIdx++;
-
-      extraItems.forEach((item, i) => {
-        const d = r.items && r.items[item.id] || {};
-        const result = d.result || '';
-        const score = d.score || '';
-        rows.push([String(i+1), item.name, '', result, '', '', score, '']);
-        merges.push({ s:{r:rowIdx,c:1}, e:{r:rowIdx,c:2} });
-        merges.push({ s:{r:rowIdx,c:3}, e:{r:rowIdx,c:5} });
-        merges.push({ s:{r:rowIdx,c:6}, e:{r:rowIdx,c:7} });
-        rowIdx++;
-      });
+      rows.push([tpl.seq, tpl.name, result, score]);
+      ri++;
     }
+
+    // Row 38: 拓展附加测试项 标题
+    rows.push(['拓展附加测试项（深度研究可选）', '', '', '']);
+    merges.push({ s:{r:ri,c:0}, e:{r:ri,c:3} });
+    ri++;
+
+    // Row 39: 拓展表头
+    rows.push(['', '补充舒适度测试项目', '结果选项', '单项评分(1-5分)']);
+    ri++;
+
+    // Rows 40-49: 拓展测试项 25-34
+    for (let i = 24; i < 34; i++) {
+      const tpl = TEMPLATE_ITEM_MAP[i];
+      const d = r.items && r.items[tpl.itemId] || {};
+      const result = d.result || '';
+      const score = d.score || '';
+      rows.push([tpl.seq, tpl.name, result, score]);
+      ri++;
+    }
+
+    // Row 50: 评分说明
+    rows.push(['评分说明', '单项评分规则：5分=完全舒适无任何不适；4分=轻微不适，不影响穿着；3分=明显不适，可正常穿着但有痛点；2分=严重不适，勉强可穿着；1分=完全无法正常穿着', '', '']);
+    merges.push({ s:{r:ri,c:1}, e:{r:ri,c:3} });
+    ri++;
 
     const ws = XLSX.utils.aoa_to_sheet(rows);
 
-    // 列宽设置
+    // 列宽：匹配模板 A=11.33, B=32.80, C=25.00, D=15.40
     ws['!cols'] = [
-      { wch: 8 },   // 序号
-      { wch: 22 },  // 项目名左半
-      { wch: 22 },  // 项目名右半
-      { wch: 14 },  // 结果左
-      { wch: 14 },  // 结果中
-      { wch: 14 },  // 结果右
-      { wch: 12 },  // 评分左
-      { wch: 12 }   // 评分右
+      { wch: 11.33 },
+      { wch: 32.80 },
+      { wch: 25.00 },
+      { wch: 15.40 }
     ];
 
     ws['!merges'] = merges;
 
-    // 设置样式（通过单元格属性）
+    // 设置样式
     const range = XLSX.utils.decode_range(ws['!ref']);
     for (let R = range.s.r; R <= range.e.r; R++) {
       for (let C = range.s.c; C <= range.e.c; C++) {
@@ -889,36 +928,58 @@ function doExportFormXLSX(records) {
         if (!ws[cellRef]) continue;
         const cell = ws[cellRef];
 
-        // 默认样式
         cell.s = cell.s || {};
         cell.s.font = cell.s.font || {};
+        cell.s.font.name = '等线';
+        cell.s.font.sz = 11;
         cell.s.alignment = cell.s.alignment || {};
-        cell.s.border = cell.s.border || {};
-
-        // 所有单元格居中+边框
         cell.s.alignment.horizontal = 'center';
         cell.s.alignment.vertical = 'center';
+        cell.s.border = cell.s.border || {};
         cell.s.border.top = { style: 'thin', color: { rgb: '000000' } };
         cell.s.border.bottom = { style: 'thin', color: { rgb: '000000' } };
         cell.s.border.left = { style: 'thin', color: { rgb: '000000' } };
         cell.s.border.right = { style: 'thin', color: { rgb: '000000' } };
 
-        // 标题行样式
+        // 标题行 R=0: 14pt bold
         if (R === 0) {
-          cell.s.font.bold = true;
           cell.s.font.sz = 14;
-        }
-        // 基础信息栏 / 核心测试项 标题行
-        if (R === 1 || (cell.v && (cell.v === '基础信息栏' || cell.v === '核心测试项' || cell.v === '拓展测试项'))) {
           cell.s.font.bold = true;
-          cell.s.font.sz = 12;
         }
-        // 表头行
-        if (cell.v === '序号') {
+        // 基础信息栏 R=1: bold
+        if (R === 1) {
+          cell.s.font.bold = true;
+        }
+        // 核心测试项 R=12
+        if (R === 12) {
+          cell.s.font.bold = true;
+        }
+        // 拓展附加测试项 R=38
+        if (R === 38) {
+          cell.s.font.bold = true;
+        }
+        // 表头行 R=13 和 R=39: bold
+        if (R === 13 || R === 39) {
+          cell.s.font.bold = true;
+        }
+        // 评分说明 R=50: bold
+        if (R === 50) {
           cell.s.font.bold = true;
         }
       }
     }
+
+    // 行高：模板关键行 R7(脚型)≈27.75, R47(鞋垫压缩)≈27.75, R49(疲劳态)≈27.75, R51(评分说明)≈46.9
+    // SheetJS 不支持直接设行高，通过 !rows 属性
+    ws['!rows'] = [];
+    // 脚型行 (row 7, 0-based index 6)
+    ws['!rows'][6] = { hpx: 28 };
+    // 鞋垫压缩回弹 (row 47, 0-based index 46)
+    ws['!rows'][46] = { hpx: 28 };
+    // 疲劳态复评 (row 49, 0-based index 48)
+    ws['!rows'][48] = { hpx: 28 };
+    // 评分说明 (row 51, 0-based index 50)
+    ws['!rows'][50] = { hpx: 47 };
 
     const sheetName = (r.modelCode || '记录' + (idx + 1)).replace(/[\\\/\?\*\[\]]/g, '').substring(0, 31);
     XLSX.utils.book_append_sheet(wb, ws, sheetName);
