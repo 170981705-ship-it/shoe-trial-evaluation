@@ -418,15 +418,35 @@ function doExportFormXLSX(recordsToExport){
 
   const thin = { style: 'thin', color: { rgb: '000000' } };
   const allBorders = { top: thin, bottom: thin, left: thin, right: thin };
+  // 无左右下边框（仅上边框）
+  const topBorderOnly = { top: thin };
+  // 无左右边框（上下边框）
+  const noSideBorders = { top: thin, bottom: thin };
 
   recordsToExport.forEach((r, idx) => {
     const rows = [];
     const merges = [];
+    const cellMeta = {};
     let ri = 0;
 
     function addRow(arr){ rows.push(arr); const i=ri; ri++; return i; }
 
     // Row 0-1: Title merged A1:D2
+    // Row 0: Title + submission time in D1
+    const submitTime = r.createTime || r.submitTime || '';
+    let timeStr = '';
+    if (submitTime) {
+      const d = new Date(submitTime);
+      if (!isNaN(d.getFullYear())) {
+        timeStr = d.getFullYear() + '年' + (d.getMonth()+1) + '月' + d.getDate() + '日' + d.getHours() + '：' + String(d.getMinutes()).padStart(2,'0');
+      }
+    }
+    if (!timeStr && r.id) {
+      const d = new Date(r.id);
+      if (!isNaN(d.getFullYear())) {
+        timeStr = d.getFullYear() + '年' + (d.getMonth()+1) + '月' + d.getDate() + '日' + d.getHours() + '：' + String(d.getMinutes()).padStart(2,'0');
+      }
+    }
     addRow(['运动休闲鞋整鞋舒适度主观试穿评价表', '', '', '']);
     addRow(['', '', '', '']);
     merges.push({s:{r:0,c:0}, e:{r:1,c:3}});
@@ -458,7 +478,7 @@ function doExportFormXLSX(recordsToExport){
     merges.push({s:{r:7,c:1}, e:{r:7,c:3}});
 
     // Row 8: 试穿员 | value | 试穿时长 | value
-    addRow(['试穿员', r.tester||'', '试穿时长', (r.duration||'')+'分钟']);
+    addRow(['试穿员', (r.tester||'') + (timeStr ? ' ' + timeStr : ''), '试穿时长', (r.duration||'')+'分钟']);
 
     // Row 9: 测试场景 (B10:D10 merged)
     const sceneOpts = ['平地通勤','轻度运动','楼梯行走'];
@@ -469,8 +489,19 @@ function doExportFormXLSX(recordsToExport){
     addRow(['测试场景', sceneText, '', '']);
     merges.push({s:{r:9,c:1}, e:{r:9,c:3}});
 
-    // Row 10: 满意度总分 (B11:D11 merged)
-    addRow(['满意度总分', (r.totalScore||0)+' /170', '', '']);
+    // Row 10: 满意度总分 + 舒适等级 (B11:D11 merged)
+    const totalScore = r.totalScore || 0;
+    let comfortLevel = '';
+    if (totalScore >= 153) {
+      comfortLevel = '优秀：舒适度极佳，推荐量产';
+    } else if (totalScore >= 136) {
+      comfortLevel = '良好：整体舒适，次要问题可优化';
+    } else if (totalScore >= 119) {
+      comfortLevel = '一般：基本可穿，存在明显痛点需改进';
+    } else {
+      comfortLevel = '需改进：舒适度不足，需大幅改进';
+    }
+    addRow(['满意度总分', (totalScore)+' /170  舒适等级：'+comfortLevel, '', '']);
     merges.push({s:{r:10,c:1}, e:{r:10,c:3}});
 
     // Row 11-12: 试穿改良建议 (A12:A13 merged, B12:D13 merged)
@@ -488,9 +519,13 @@ function doExportFormXLSX(recordsToExport){
 
     // Row 15-38: 核心项 1-24
     const coreMap = TEMPLATE_ITEM_MAP.filter(t => t.seq <= 24);
-    coreMap.forEach(t => {
+    coreMap.forEach((t, i) => {
       const d = (r.items||{})[String(t.itemId)] || {};
-      addRow([t.seq, t.name, d.result||'', d.score||'']);
+      const item = allItems.find(it => it.id === t.itemId);
+      const opts = item?.opts || [];
+      const displayText = opts.join('/');
+      const rowIdx = addRow([t.seq, t.name, displayText, d.score||'']);
+      cellMeta[`${rowIdx}_2`] = { opts, selected: d.result || '', displayText };
     });
 
     // Row 39: 拓展附加测试项 (A40:D40 merged)
@@ -502,15 +537,23 @@ function doExportFormXLSX(recordsToExport){
 
     // Row 41-50: 拓展项 25-34
     const extraMap = TEMPLATE_ITEM_MAP.filter(t => t.seq > 24);
-    extraMap.forEach(t => {
+    extraMap.forEach((t, i) => {
       const d = (r.items||{})[String(t.itemId)] || {};
-      addRow([t.seq, t.name, d.result||'', d.score||'']);
+      let name = t.name;
+      // B31和B33：括号内文本另起一行
+      if (t.seq === 31 || t.seq === 33) {
+        name = name.replace(/（([^）]+)）/g, '\n（$1）');
+      }
+      const item = allItems.find(it => it.id === t.itemId);
+      const opts = item?.opts || [];
+      const displayText = opts.join('/');
+      const rowIdx = addRow([t.seq, name, displayText, d.score||'']);
+      cellMeta[`${rowIdx}_2`] = { opts, selected: d.result || '', displayText };
     });
 
-    // Row 51-52: 评分说明 (A52:A53 merged, B52:D53 merged)
-    addRow(['评分说明', '单项评分规则：5分=完全舒适无任何不适；4分=轻微不适，不影响穿着；3分=明显不适，可正常穿着但有痛点；2分=严重不适，勉强可穿着；1分=完全无法正常穿着。', '', '']);
-    merges.push({s:{r:51,c:0}, e:{r:52,c:0}});
-    merges.push({s:{r:51,c:1}, e:{r:52,c:3}});
+    // Row 51: 评分说明（仅行52，不跨行53）
+    addRow(['评分说明：', '单项评分规则：5分=完全舒适无任何不适；4分=轻微不适，不影响穿着；3分=明显不适，可正常穿着但有痛点；2分=严重不适，勉强可穿着；1分=完全无法正常穿着。', '', '']);
+    merges.push({s:{r:51,c:1}, e:{r:51,c:3}});  // B52:D52合并，不跨行
     addRow(['', '', '', '']);
 
     const ws = XLSX.utils.aoa_to_sheet(rows);
@@ -529,6 +572,8 @@ function doExportFormXLSX(recordsToExport){
     for(let i = 0; i < totalRows; i++){
       ws['!rows'].push({ hpt: 14.5 });
     }
+    ws['!rows'][47] = { hpt: 29 };
+    ws['!rows'][49] = { hpt: 29 };
     ws['!rows'][51] = { hpt: 29 };
     ws['!rows'][52] = { hpt: 29 };
 
@@ -543,10 +588,15 @@ function doExportFormXLSX(recordsToExport){
         const cell = ws[cellRef];
         cell.s = {};
 
-        // 标题行 R=0,1: 等线16号, 居中, 无边框
+        // 标题行 R=0,1: 等线16号加粗, 居中, 无边框
         if(R === 0 || R === 1){
-          cell.s.font = { name: '等线', sz: 16 };
-          cell.s.alignment = { horizontal: 'center', vertical: 'center' };
+          if(R === 0 && C === 3){
+            cell.s.font = { name: '等线', sz: 11 };
+            cell.s.alignment = { horizontal: 'center', vertical: 'center' };
+          } else {
+            cell.s.font = { name: '等线', sz: 16, bold: true };
+            cell.s.alignment = { horizontal: 'center', vertical: 'center' };
+          }
         }
         // 基础信息栏 R=2: 等线11号加粗, 居中, 全边框
         else if(R === 2){
@@ -566,23 +616,64 @@ function doExportFormXLSX(recordsToExport){
           cell.s.alignment = { horizontal: 'center', vertical: 'center' };
           cell.s.border = allBorders;
         }
-        // 表头 R=14, R=40: 等线11号加粗, 垂直居中
+        // 表头 R=14, R=40: 等线11号加粗, 垂直居中, B列居中
         else if(R === 14 || R === 40){
           cell.s.font = { name: '等线', sz: 11, bold: true };
-          cell.s.alignment = { horizontal: C === 1 ? 'left' : 'center', vertical: 'center' };
+          cell.s.alignment = { horizontal: 'center', vertical: 'center' };
           cell.s.border = allBorders;
         }
-        // 评分说明 R=51,52: 自动换行, 垂直居中
-        else if(R === 51 || R === 52){
-          cell.s.font = { name: '等线', sz: 11 };
-          cell.s.alignment = { horizontal: C === 1 ? 'left' : 'center', vertical: 'center', wrapText: true };
-          cell.s.border = allBorders;
+        // 评分说明 R=51(A52/B52): 加粗, 居中, A52左框线+B52右框线
+        else if(R === 51){
+          if(C === 0){
+            cell.s.font = { name: '等线', sz: 11, bold: true };
+            cell.s.alignment = { horizontal: 'center', vertical: 'center' };
+            cell.s.border = { top: thin, left: thin, right: thin };
+          } else if(C === 1){
+            cell.s.font = { name: '等线', sz: 11, bold: true };
+            cell.s.alignment = { horizontal: 'center', vertical: 'center', wrapText: true };
+            cell.s.border = { top: thin, left: thin };
+          } else if(C === 3){
+            cell.s.border = { top: thin, right: thin };
+          } else {
+            cell.s.border = { top: thin };
+          }
         }
-        // 其他所有行: 等线11号, 垂直居中, 测试项目左对齐, 全边框
+        // 行53空行: 无左右下框线
+        else if(R === 52){
+          cell.s.border = { top: thin };
+        }
+        // 其他所有行: 等线11号, 垂直居中, B列居中, 全边框
         else{
           cell.s.font = { name: '等线', sz: 11 };
-          cell.s.alignment = { horizontal: C === 1 ? 'left' : 'center', vertical: 'center' };
+          cell.s.alignment = { horizontal: 'center', vertical: 'center' };
           cell.s.border = allBorders;
+
+          // 核心项和拓展项的C列：富文本颜色（选中黑色，未选中灰色）
+          if(C === 2 && cellMeta[`${R}_2`]){
+            const meta = cellMeta[`${R}_2`];
+            if(meta.opts.length > 0){
+              const parts = [];
+              meta.opts.forEach((opt, i) => {
+                const isSelected = opt === meta.selected;
+                const color = isSelected ? '000000' : 'BFBFBF';
+                parts.push({
+                  t: opt,
+                  s: { font: { color: { rgb: color }, name: '等线', sz: 11 } }
+                });
+                if(i < meta.opts.length - 1){
+                  parts.push({
+                    t: '/',
+                    s: { font: { color: { rgb: 'BFBFBF' }, name: '等线', sz: 11 } }
+                  });
+                }
+              });
+              cell.r = parts;
+              cell.v = undefined;
+              delete cell.v;
+              cell.t = 's';
+              cell.s = { font: { name: '等线', sz: 11 }, alignment: { horizontal: 'center', vertical: 'center' }, border: allBorders };
+            }
+          }
         }
       }
     }
