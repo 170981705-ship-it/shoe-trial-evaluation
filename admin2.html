@@ -433,7 +433,7 @@ function doExportFormXLSX(recordsToExport){
 
     // Row 0-1: Title merged A1:D2
     // Row 0: Title + submission time in D1
-    const submitTime = r.submitTime || '';
+    const submitTime = r.createTime || r.submitTime || '';
     let timeStr = '';
     if (submitTime) {
       const d = new Date(submitTime);
@@ -622,7 +622,7 @@ function doExportFormXLSX(recordsToExport){
           cell.s.alignment = { horizontal: 'center', vertical: 'center' };
           cell.s.border = allBorders;
         }
-        // 评分说明 R=51(A52/B52): 加粗, 居中, 无左右下框线
+        // 评分说明 R=51(A52/B52): 加粗, 居中, A52左框线+B52右框线
         else if(R === 51){
           if(C === 0){
             cell.s.font = { name: '等线', sz: 11, bold: true };
@@ -631,7 +631,9 @@ function doExportFormXLSX(recordsToExport){
           } else if(C === 1){
             cell.s.font = { name: '等线', sz: 11, bold: true };
             cell.s.alignment = { horizontal: 'center', vertical: 'center', wrapText: true };
-            cell.s.border = { top: thin, left: thin, right: thin };
+            cell.s.border = { top: thin, left: thin };
+          } else if(C === 3){
+            cell.s.border = { top: thin, right: thin };
           } else {
             cell.s.border = { top: thin };
           }
@@ -646,7 +648,7 @@ function doExportFormXLSX(recordsToExport){
           cell.s.alignment = { horizontal: 'center', vertical: 'center' };
           cell.s.border = allBorders;
 
-          // 核心项和拓展项的C列：富文本颜色
+          // 核心项和拓展项的C列：富文本颜色（选中黑色，未选中灰色）
           if(C === 2 && cellMeta[`${R}_2`]){
             const meta = cellMeta[`${R}_2`];
             if(meta.opts.length > 0){
@@ -666,8 +668,10 @@ function doExportFormXLSX(recordsToExport){
                 }
               });
               cell.r = parts;
-              cell.v = meta.displayText;
+              cell.v = undefined;
+              delete cell.v;
               cell.t = 's';
+              cell.s = { font: { name: '等线', sz: 11 }, alignment: { horizontal: 'center', vertical: 'center' }, border: allBorders };
             }
           }
         }
