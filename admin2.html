@@ -437,10 +437,10 @@ function doExportFormXLSX(recordsToExport){
     if (submitTime) {
       const d = new Date(submitTime);
       if (!isNaN(d.getFullYear())) {
-        timeStr = d.getFullYear() + '年' + String(d.getMonth()+1).padStart(2,'0') + '月' + String(d.getDate()).padStart(2,'0') + '日';
+        timeStr = d.getFullYear() + '年' + (d.getMonth()+1) + '月' + d.getDate() + '日' + d.getHours() + ':' + String(d.getMinutes()).padStart(2,'0');
       }
     }
-    addRow(['运动休闲鞋整鞋舒适度主观试穿评价表', '', '', timeStr]);
+    addRow(['运动休闲鞋整鞋舒适度主观试穿评价表', '', '', '']);
     addRow(['', '', '', '']);
     merges.push({s:{r:0,c:0}, e:{r:1,c:3}});
 
@@ -471,7 +471,7 @@ function doExportFormXLSX(recordsToExport){
     merges.push({s:{r:7,c:1}, e:{r:7,c:3}});
 
     // Row 8: 试穿员 | value | 试穿时长 | value
-    addRow(['试穿员', r.tester||'', '试穿时长', (r.duration||'')+'分钟']);
+    addRow(['试穿员', (r.tester||'') + (timeStr ? ' ' + timeStr : ''), '试穿时长', (r.duration||'')+'分钟']);
 
     // Row 9: 测试场景 (B10:D10 merged)
     const sceneOpts = ['平地通勤','轻度运动','楼梯行走'];
@@ -536,10 +536,9 @@ function doExportFormXLSX(recordsToExport){
       addRow([t.seq, name, d.result||'', d.score||'']);
     });
 
-    // Row 51-52: 评分说明 (A52:A53 merged, B52:D53 merged)
-    addRow(['评分说明', '单项评分规则：5分=完全舒适无任何不适；4分=轻微不适，不影响穿着；3分=明显不适，可正常穿着但有痛点；2分=严重不适，勉强可穿着；1分=完全无法正常穿着。', '', '']);
-    merges.push({s:{r:51,c:0}, e:{r:52,c:0}});
-    merges.push({s:{r:51,c:1}, e:{r:52,c:3}});
+    // Row 51: 评分说明（仅行52，不跨行53）
+    addRow(['评分说明：', '单项评分规则：5分=完全舒适无任何不适；4分=轻微不适，不影响穿着；3分=明显不适，可正常穿着但有痛点；2分=严重不适，勉强可穿着；1分=完全无法正常穿着。', '', '']);
+    merges.push({s:{r:51,c:1}, e:{r:51,c:3}});  // B52:D52合并，不跨行
     addRow(['', '', '', '']);
 
     const ws = XLSX.utils.aoa_to_sheet(rows);
@@ -574,7 +573,7 @@ function doExportFormXLSX(recordsToExport){
         const cell = ws[cellRef];
         cell.s = {};
 
-        // 标题行 R=0,1: 等线16号加粗, 居中, 无边框; D1为提交时间 等线11号
+        // 标题行 R=0,1: 等线16号加粗, 居中, 无边框
         if(R === 0 || R === 1){
           if(R === 0 && C === 3){
             cell.s.font = { name: '等线', sz: 11 };
@@ -608,17 +607,23 @@ function doExportFormXLSX(recordsToExport){
           cell.s.alignment = { horizontal: 'center', vertical: 'center' };
           cell.s.border = allBorders;
         }
-        // 评分说明 R=51: 加粗, 居中, 无左右下边框（仅上边框）
-        else if(R === 51 && C <= 1){
-          cell.s.font = { name: '等线', sz: 11, bold: true };
-          cell.s.alignment = { horizontal: 'center', vertical: 'center', wrapText: true };
-          cell.s.border = topBorderOnly;
+        // 评分说明 R=51(A52/B52): 加粗, 居中, 无左右下框线
+        else if(R === 51){
+          if(C === 0){
+            cell.s.font = { name: '等线', sz: 11, bold: true };
+            cell.s.alignment = { horizontal: 'center', vertical: 'center' };
+            cell.s.border = { top: thin, right: thin };
+          } else if(C === 1){
+            cell.s.font = { name: '等线', sz: 11, bold: true };
+            cell.s.alignment = { horizontal: 'center', vertical: 'center', wrapText: true };
+            cell.s.border = { top: thin, left: thin };
+          } else {
+            cell.s.border = { top: thin };
+          }
         }
-        // 评分说明 R=52(A53/B53): 无左右下框线(仅上边框), 自动换行, 垂直居中
+        // 行53空行: 无左右下框线
         else if(R === 52){
-          cell.s.font = { name: '等线', sz: 11 };
-          cell.s.alignment = { horizontal: 'center', vertical: 'center', wrapText: true };
-          cell.s.border = topBorderOnly;
+          cell.s.border = { top: thin };
         }
         // 其他所有行: 等线11号, 垂直居中, B列居中, 全边框
         else{
