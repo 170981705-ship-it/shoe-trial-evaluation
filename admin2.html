@@ -426,6 +426,7 @@ function doExportFormXLSX(recordsToExport){
   recordsToExport.forEach((r, idx) => {
     const rows = [];
     const merges = [];
+    const cellMeta = {};
     let ri = 0;
 
     function addRow(arr){ rows.push(arr); const i=ri; ri++; return i; }
@@ -437,7 +438,13 @@ function doExportFormXLSX(recordsToExport){
     if (submitTime) {
       const d = new Date(submitTime);
       if (!isNaN(d.getFullYear())) {
-        timeStr = d.getFullYear() + '年' + (d.getMonth()+1) + '月' + d.getDate() + '日' + d.getHours() + ':' + String(d.getMinutes()).padStart(2,'0');
+        timeStr = d.getFullYear() + '年' + (d.getMonth()+1) + '月' + d.getDate() + '日' + d.getHours() + '：' + String(d.getMinutes()).padStart(2,'0');
+      }
+    }
+    if (!timeStr && r.id) {
+      const d = new Date(r.id);
+      if (!isNaN(d.getFullYear())) {
+        timeStr = d.getFullYear() + '年' + (d.getMonth()+1) + '月' + d.getDate() + '日' + d.getHours() + '：' + String(d.getMinutes()).padStart(2,'0');
       }
     }
     addRow(['运动休闲鞋整鞋舒适度主观试穿评价表', '', '', '']);
@@ -512,9 +519,13 @@ function doExportFormXLSX(recordsToExport){
 
     // Row 15-38: 核心项 1-24
     const coreMap = TEMPLATE_ITEM_MAP.filter(t => t.seq <= 24);
-    coreMap.forEach(t => {
+    coreMap.forEach((t, i) => {
       const d = (r.items||{})[String(t.itemId)] || {};
-      addRow([t.seq, t.name, d.result||'', d.score||'']);
+      const item = allItems.find(it => it.id === t.itemId);
+      const opts = item?.opts || [];
+      const displayText = opts.join('/');
+      const rowIdx = addRow([t.seq, t.name, displayText, d.score||'']);
+      cellMeta[`${rowIdx}_2`] = { opts, selected: d.result || '', displayText };
     });
 
     // Row 39: 拓展附加测试项 (A40:D40 merged)
@@ -526,14 +537,18 @@ function doExportFormXLSX(recordsToExport){
 
     // Row 41-50: 拓展项 25-34
     const extraMap = TEMPLATE_ITEM_MAP.filter(t => t.seq > 24);
-    extraMap.forEach(t => {
+    extraMap.forEach((t, i) => {
       const d = (r.items||{})[String(t.itemId)] || {};
       let name = t.name;
       // B31和B33：括号内文本另起一行
       if (t.seq === 31 || t.seq === 33) {
         name = name.replace(/（([^）]+)）/g, '\n（$1）');
       }
-      addRow([t.seq, name, d.result||'', d.score||'']);
+      const item = allItems.find(it => it.id === t.itemId);
+      const opts = item?.opts || [];
+      const displayText = opts.join('/');
+      const rowIdx = addRow([t.seq, name, displayText, d.score||'']);
+      cellMeta[`${rowIdx}_2`] = { opts, selected: d.result || '', displayText };
     });
 
     // Row 51: 评分说明（仅行52，不跨行53）
@@ -612,11 +627,11 @@ function doExportFormXLSX(recordsToExport){
           if(C === 0){
             cell.s.font = { name: '等线', sz: 11, bold: true };
             cell.s.alignment = { horizontal: 'center', vertical: 'center' };
-            cell.s.border = { top: thin, right: thin };
+            cell.s.border = { top: thin, left: thin, right: thin };
           } else if(C === 1){
             cell.s.font = { name: '等线', sz: 11, bold: true };
             cell.s.alignment = { horizontal: 'center', vertical: 'center', wrapText: true };
-            cell.s.border = { top: thin, left: thin };
+            cell.s.border = { top: thin, left: thin, right: thin };
           } else {
             cell.s.border = { top: thin };
           }
@@ -630,6 +645,31 @@ function doExportFormXLSX(recordsToExport){
           cell.s.font = { name: '等线', sz: 11 };
           cell.s.alignment = { horizontal: 'center', vertical: 'center' };
           cell.s.border = allBorders;
+
+          // 核心项和拓展项的C列：富文本颜色
+          if(C === 2 && cellMeta[`${R}_2`]){
+            const meta = cellMeta[`${R}_2`];
+            if(meta.opts.length > 0){
+              const parts = [];
+              meta.opts.forEach((opt, i) => {
+                const isSelected = opt === meta.selected;
+                const color = isSelected ? '000000' : 'BFBFBF';
+                parts.push({
+                  t: opt,
+                  s: { font: { color: { rgb: color }, name: '等线', sz: 11 } }
+                });
+                if(i < meta.opts.length - 1){
+                  parts.push({
+                    t: '/',
+                    s: { font: { color: { rgb: 'BFBFBF' }, name: '等线', sz: 11 } }
+                  });
+                }
+              });
+              cell.r = parts;
+              cell.v = meta.displayText;
+              cell.t = 's';
+            }
+          }
         }
       }
     }
