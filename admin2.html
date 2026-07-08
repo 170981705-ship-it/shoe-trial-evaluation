@@ -418,6 +418,10 @@ function doExportFormXLSX(recordsToExport){
 
   const thin = { style: 'thin', color: { rgb: '000000' } };
   const allBorders = { top: thin, bottom: thin, left: thin, right: thin };
+  // 无左右下边框（仅上边框）
+  const topBorderOnly = { top: thin };
+  // 无左右边框（上下边框）
+  const noSideBorders = { top: thin, bottom: thin };
 
   recordsToExport.forEach((r, idx) => {
     const rows = [];
@@ -427,7 +431,16 @@ function doExportFormXLSX(recordsToExport){
     function addRow(arr){ rows.push(arr); const i=ri; ri++; return i; }
 
     // Row 0-1: Title merged A1:D2
-    addRow(['运动休闲鞋整鞋舒适度主观试穿评价表', '', '', '']);
+    // Row 0: Title + submission time in D1
+    const submitTime = r.submitTime || '';
+    let timeStr = '';
+    if (submitTime) {
+      const d = new Date(submitTime);
+      if (!isNaN(d.getFullYear())) {
+        timeStr = d.getFullYear() + '年' + String(d.getMonth()+1).padStart(2,'0') + '月' + String(d.getDate()).padStart(2,'0') + '日';
+      }
+    }
+    addRow(['运动休闲鞋整鞋舒适度主观试穿评价表', '', '', '试穿提交时间：' + timeStr]);
     addRow(['', '', '', '']);
     merges.push({s:{r:0,c:0}, e:{r:1,c:3}});
 
@@ -469,8 +482,19 @@ function doExportFormXLSX(recordsToExport){
     addRow(['测试场景', sceneText, '', '']);
     merges.push({s:{r:9,c:1}, e:{r:9,c:3}});
 
-    // Row 10: 满意度总分 (B11:D11 merged)
-    addRow(['满意度总分', (r.totalScore||0)+' /170', '', '']);
+    // Row 10: 满意度总分 + 舒适等级 (B11:D11 merged)
+    const totalScore = r.totalScore || 0;
+    let comfortLevel = '';
+    if (totalScore >= 153) {
+      comfortLevel = '优秀：舒适度极佳，推荐量产';
+    } else if (totalScore >= 136) {
+      comfortLevel = '良好：整体舒适，次要问题可优化';
+    } else if (totalScore >= 119) {
+      comfortLevel = '一般：基本可穿，存在明显痛点需改进';
+    } else {
+      comfortLevel = '需改进：舒适度不足，需大幅改进';
+    }
+    addRow(['满意度总分', (totalScore)+' /170  舒适等级：'+comfortLevel, '', '']);
     merges.push({s:{r:10,c:1}, e:{r:10,c:3}});
 
     // Row 11-12: 试穿改良建议 (A12:A13 merged, B12:D13 merged)
@@ -504,7 +528,12 @@ function doExportFormXLSX(recordsToExport){
     const extraMap = TEMPLATE_ITEM_MAP.filter(t => t.seq > 24);
     extraMap.forEach(t => {
       const d = (r.items||{})[String(t.itemId)] || {};
-      addRow([t.seq, t.name, d.result||'', d.score||'']);
+      let name = t.name;
+      // B31和B33：括号内文本另起一行
+      if (t.seq === 31 || t.seq === 33) {
+        name = name.replace(/（([^）]+)）/g, '\n（$1）');
+      }
+      addRow([t.seq, name, d.result||'', d.score||'']);
     });
 
     // Row 51-52: 评分说明 (A52:A53 merged, B52:D53 merged)
@@ -543,9 +572,9 @@ function doExportFormXLSX(recordsToExport){
         const cell = ws[cellRef];
         cell.s = {};
 
-        // 标题行 R=0,1: 等线16号, 居中, 无边框
+        // 标题行 R=0,1: 等线16号加粗, 居中, 无边框
         if(R === 0 || R === 1){
-          cell.s.font = { name: '等线', sz: 16 };
+          cell.s.font = { name: '等线', sz: 16, bold: true };
           cell.s.alignment = { horizontal: 'center', vertical: 'center' };
         }
         // 基础信息栏 R=2: 等线11号加粗, 居中, 全边框
@@ -572,13 +601,19 @@ function doExportFormXLSX(recordsToExport){
           cell.s.alignment = { horizontal: C === 1 ? 'left' : 'center', vertical: 'center' };
           cell.s.border = allBorders;
         }
-        // 评分说明 R=51,52: 自动换行, 垂直居中
-        else if(R === 51 || R === 52){
+        // 评分说明 R=51: 加粗, 居中, 无左右下边框（仅上边框）
+        else if(R === 51 && C <= 1){
+          cell.s.font = { name: '等线', sz: 11, bold: true };
+          cell.s.alignment = { horizontal: 'center', vertical: 'center', wrapText: true };
+          cell.s.border = topBorderOnly;
+        }
+        // 评分说明 R=52: 自动换行, 垂直居中
+        else if(R === 52){
           cell.s.font = { name: '等线', sz: 11 };
           cell.s.alignment = { horizontal: C === 1 ? 'left' : 'center', vertical: 'center', wrapText: true };
           cell.s.border = allBorders;
         }
-        // 其他所有行: 等线11号, 垂直居中, 测试项目左对齐, 全边框
+        // 其他所有行: 等线11号, 垂直居中, B列垂直居中, 测试项目左对齐, 全边框
         else{
           cell.s.font = { name: '等线', sz: 11 };
           cell.s.alignment = { horizontal: C === 1 ? 'left' : 'center', vertical: 'center' };
