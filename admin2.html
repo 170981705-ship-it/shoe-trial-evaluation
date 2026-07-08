@@ -440,7 +440,7 @@ function doExportFormXLSX(recordsToExport){
         timeStr = d.getFullYear() + '年' + String(d.getMonth()+1).padStart(2,'0') + '月' + String(d.getDate()).padStart(2,'0') + '日';
       }
     }
-    addRow(['运动休闲鞋整鞋舒适度主观试穿评价表', '', '', '试穿提交时间：' + timeStr]);
+    addRow(['运动休闲鞋整鞋舒适度主观试穿评价表', '', '', timeStr]);
     addRow(['', '', '', '']);
     merges.push({s:{r:0,c:0}, e:{r:1,c:3}});
 
@@ -558,6 +558,8 @@ function doExportFormXLSX(recordsToExport){
     for(let i = 0; i < totalRows; i++){
       ws['!rows'].push({ hpt: 14.5 });
     }
+    ws['!rows'][47] = { hpt: 29 };
+    ws['!rows'][49] = { hpt: 29 };
     ws['!rows'][51] = { hpt: 29 };
     ws['!rows'][52] = { hpt: 29 };
 
@@ -572,10 +574,15 @@ function doExportFormXLSX(recordsToExport){
         const cell = ws[cellRef];
         cell.s = {};
 
-        // 标题行 R=0,1: 等线16号加粗, 居中, 无边框
+        // 标题行 R=0,1: 等线16号加粗, 居中, 无边框; D1为提交时间 等线11号
         if(R === 0 || R === 1){
-          cell.s.font = { name: '等线', sz: 16, bold: true };
-          cell.s.alignment = { horizontal: 'center', vertical: 'center' };
+          if(R === 0 && C === 3){
+            cell.s.font = { name: '等线', sz: 11 };
+            cell.s.alignment = { horizontal: 'center', vertical: 'center' };
+          } else {
+            cell.s.font = { name: '等线', sz: 16, bold: true };
+            cell.s.alignment = { horizontal: 'center', vertical: 'center' };
+          }
         }
         // 基础信息栏 R=2: 等线11号加粗, 居中, 全边框
         else if(R === 2){
@@ -595,10 +602,10 @@ function doExportFormXLSX(recordsToExport){
           cell.s.alignment = { horizontal: 'center', vertical: 'center' };
           cell.s.border = allBorders;
         }
-        // 表头 R=14, R=40: 等线11号加粗, 垂直居中
+        // 表头 R=14, R=40: 等线11号加粗, 垂直居中, B列居中
         else if(R === 14 || R === 40){
           cell.s.font = { name: '等线', sz: 11, bold: true };
-          cell.s.alignment = { horizontal: C === 1 ? 'left' : 'center', vertical: 'center' };
+          cell.s.alignment = { horizontal: 'center', vertical: 'center' };
           cell.s.border = allBorders;
         }
         // 评分说明 R=51: 加粗, 居中, 无左右下边框（仅上边框）
@@ -607,16 +614,16 @@ function doExportFormXLSX(recordsToExport){
           cell.s.alignment = { horizontal: 'center', vertical: 'center', wrapText: true };
           cell.s.border = topBorderOnly;
         }
-        // 评分说明 R=52: 自动换行, 垂直居中
+        // 评分说明 R=52(A53/B53): 无左右下框线(仅上边框), 自动换行, 垂直居中
         else if(R === 52){
           cell.s.font = { name: '等线', sz: 11 };
-          cell.s.alignment = { horizontal: C === 1 ? 'left' : 'center', vertical: 'center', wrapText: true };
-          cell.s.border = allBorders;
+          cell.s.alignment = { horizontal: 'center', vertical: 'center', wrapText: true };
+          cell.s.border = topBorderOnly;
         }
-        // 其他所有行: 等线11号, 垂直居中, B列垂直居中, 测试项目左对齐, 全边框
+        // 其他所有行: 等线11号, 垂直居中, B列居中, 全边框
         else{
           cell.s.font = { name: '等线', sz: 11 };
-          cell.s.alignment = { horizontal: C === 1 ? 'left' : 'center', vertical: 'center' };
+          cell.s.alignment = { horizontal: 'center', vertical: 'center' };
           cell.s.border = allBorders;
         }
       }
