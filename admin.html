@@ -667,10 +667,10 @@ function doExportFormXLSX(recordsToExport){
                   });
                 }
               });
+              const fullText = meta.opts.join('/');
+              cell.v = fullText;
+              cell.t = 'str';
               cell.r = parts;
-              cell.v = undefined;
-              delete cell.v;
-              cell.t = 's';
               cell.s = { font: { name: '等线', sz: 11 }, alignment: { horizontal: 'center', vertical: 'center' }, border: allBorders };
             }
           }
