@@ -139,6 +139,7 @@ header .stats{font-size:13px;opacity:.85;}
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js?v=2"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script>
 // ==================== 数据定义 ====================
 const allItems = [
@@ -412,279 +413,281 @@ function exportSelected(){
   doExportFormXLSX(toExport);
 }
 
-function doExportFormXLSX(recordsToExport){
-  if(typeof XLSX === 'undefined') return toast('\u26a0\ufe0f 正在加载Excel库，请稍后再试');
-  const wb = XLSX.utils.book_new();
+async function doExportFormXLSX(recordsToExport){
+  if(typeof ExcelJS === 'undefined') return toast('\u26a0\ufe0f \u6b63\u5728\u52a0\u8f7Excel\u5e93\uff0c\u8bf7\u7a0d\u540e\u518d\u8bd5');
+  const wb = new ExcelJS.Workbook();
 
-  const thin = { style: 'thin', color: { rgb: '000000' } };
+  const thin = { style: 'thin', color: { argb: 'FF000000' } };
   const allBorders = { top: thin, bottom: thin, left: thin, right: thin };
-  // 无左右下边框（仅上边框）
-  const topBorderOnly = { top: thin };
-  // 无左右边框（上下边框）
-  const noSideBorders = { top: thin, bottom: thin };
+  const font11 = { name: '\u7b49\u7ebf', size: 11 };
+  const font11b = { name: '\u7b49\u7ebf', size: 11, bold: true };
+  const font16b = { name: '\u7b49\u7ebf', size: 16, bold: true };
+  const center = { horizontal: 'center', vertical: 'center' };
+  const centerWrap = { horizontal: 'center', vertical: 'center', wrapText: true };
 
-  recordsToExport.forEach((r, idx) => {
-    const rows = [];
-    const merges = [];
-    const cellMeta = {};
-    let ri = 0;
+  function setCell(ws, row, col, value, font, alignment, border){
+    const cell = ws.getRow(row).getCell(col);
+    if(value !== null) cell.value = value;
+    if(font) cell.font = font;
+    if(alignment) cell.alignment = alignment;
+    if(border) cell.border = border;
+    return cell;
+  }
 
-    function addRow(arr){ rows.push(arr); const i=ri; ri++; return i; }
+  for(let idx = 0; idx < recordsToExport.length; idx++){
+    const r = recordsToExport[idx];
+    const sheetName = (r.modelCode || '\u8bb0\u5f55'+(idx+1)).replace(/[\\/\*\?\[\]:]/g,'_').substring(0,31);
+    const ws = wb.addWorksheet(sheetName);
 
-    // Row 0-1: Title merged A1:D2
-    // Row 0: Title + submission time in D1
+    ws.getColumn(1).width = 11.33;
+    ws.getColumn(2).width = 32.80;
+    ws.getColumn(3).width = 25.00;
+    ws.getColumn(4).width = 15.40;
+
+    for(let i = 1; i <= 53; i++){
+      ws.getRow(i).height = 14.5;
+    }
+
     const submitTime = r.createTime || r.submitTime || '';
     let timeStr = '';
     if (submitTime) {
       const d = new Date(submitTime);
       if (!isNaN(d.getFullYear())) {
-        timeStr = d.getFullYear() + '年' + (d.getMonth()+1) + '月' + d.getDate() + '日' + d.getHours() + '：' + String(d.getMinutes()).padStart(2,'0');
+        timeStr = d.getFullYear() + '\u5e74' + (d.getMonth()+1) + '\u6708' + d.getDate() + '\u65e5' + d.getHours() + '\uff1a' + String(d.getMinutes()).padStart(2,'0');
       }
     }
     if (!timeStr && r.id) {
-      const d = new Date(r.id);
-      if (!isNaN(d.getFullYear())) {
-        timeStr = d.getFullYear() + '年' + (d.getMonth()+1) + '月' + d.getDate() + '日' + d.getHours() + '：' + String(d.getMinutes()).padStart(2,'0');
-      }
+      try {
+        const ts = parseInt(r.id, 36);
+        const d = new Date(ts);
+        if (!isNaN(d.getFullYear()) && d.getFullYear() > 2020) {
+          timeStr = d.getFullYear() + '\u5e74' + (d.getMonth()+1) + '\u6708' + d.getDate() + '\u65e5' + d.getHours() + '\uff1a' + String(d.getMinutes()).padStart(2,'0');
+        }
+      } catch(e) {}
     }
-    addRow(['运动休闲鞋整鞋舒适度主观试穿评价表', '', '', '']);
-    addRow(['', '', '', '']);
-    merges.push({s:{r:0,c:0}, e:{r:1,c:3}});
 
-    // Row 2: 基础信息栏 merged A3:D3
-    addRow(['基础信息栏', '', '', '']);
-    merges.push({s:{r:2,c:0}, e:{r:2,c:3}});
+    // Row 1-2: Title
+    for(let c = 1; c <= 4; c++){
+      setCell(ws, 1, c, c === 1 ? '\u8fd0\u52a8\u4f11\u95f2\u978b\u6574\u978b\u8212\u9002\u5ea6\u4e3b\u89c2\u8bd5\u7a7f\u8bc4\u4ef7\u8868' : '', font16b, center, null);
+      setCell(ws, 2, c, '', font16b, center, null);
+    }
+    ws.mergeCells(1, 1, 2, 4);
 
-    // Row 3: 鞋款货号 | value | 楦型 | value
-    addRow(['鞋款货号', r.modelCode||'', '楦型', r.lastShape||'']);
+    // Row 3: Basic info header
+    for(let c = 1; c <= 4; c++){
+      setCell(ws, 3, c, c === 1 ? '\u57fa\u7840\u4fe1\u606f\u680f' : '', font11b, center, allBorders);
+    }
+    ws.mergeCells(3, 1, 3, 4);
 
-    // Row 4: 鞋垫硬度 (B5:D5 merged)
-    addRow(['鞋垫硬度', (r.hardnessInsole||'____')+' Shore A（参考：25-35超软/36-45适中/46-60偏硬）', '', '']);
-    merges.push({s:{r:4,c:1}, e:{r:4,c:3}});
+    // Row 4: Model code / last shape
+    setCell(ws, 4, 1, '\u978b\u6b3e\u8d27\u53f7', font11, center, allBorders);
+    setCell(ws, 4, 2, r.modelCode||'', font11, center, allBorders);
+    setCell(ws, 4, 3, '\u69e5\u578b', font11, center, allBorders);
+    setCell(ws, 4, 4, r.lastShape||'', font11, center, allBorders);
 
-    // Row 5: 外底硬度 (B6:D6 merged)
-    addRow(['外底硬度', (r.hardnessOutsole||'____')+' Shore A（参考：55-65耐磨止滑）', '', '']);
-    merges.push({s:{r:5,c:1}, e:{r:5,c:3}});
+    // Row 5: Insole hardness
+    setCell(ws, 5, 1, '\u978b\u57ab\u786c\u5ea6', font11, center, allBorders);
+    setCell(ws, 5, 2, (r.hardnessInsole||'____')+' Shore A\uff08\u53c2\u8003\uff1a25-35\u8d85\u8f6f/36-45\u9002\u4e2d/46-60\u504f\u786c\uff09', font11, center, allBorders);
+    setCell(ws, 5, 3, '', font11, center, allBorders);
+    setCell(ws, 5, 4, '', font11, center, allBorders);
+    ws.mergeCells(5, 2, 5, 4);
 
-    // Row 6: 中底硬度 (B7:D7 merged)
-    addRow(['中底硬度', (r.hardnessMidsole||'____')+' Shore C（参考：40-50通勤甜区/51-60运动支撑）', '', '']);
-    merges.push({s:{r:6,c:1}, e:{r:6,c:3}});
+    // Row 6: Outsole hardness
+    setCell(ws, 6, 1, '\u5916\u5e95\u786c\u5ea6', font11, center, allBorders);
+    setCell(ws, 6, 2, (r.hardnessOutsole||'____')+' Shore A\uff08\u53c2\u8003\uff1a55-65\u8010\u78e8\u6b62\u6ed1\uff09', font11, center, allBorders);
+    setCell(ws, 6, 3, '', font11, center, allBorders);
+    setCell(ws, 6, 4, '', font11, center, allBorders);
+    ws.mergeCells(6, 2, 6, 4);
 
-    // Row 7: 试穿人员脚型 (B8:D8 merged)
-    const footOpts = ['正常足','高足弓','扁平足','宽脚','瘦脚'];
+    // Row 7: Midsole hardness
+    setCell(ws, 7, 1, '\u4e2d\u5e95\u786c\u5ea6', font11, center, allBorders);
+    setCell(ws, 7, 2, (r.hardnessMidsole||'____')+' Shore C\uff08\u53c2\u8003\uff1a40-50\u901a\u52e4\u751c\u533a/51-60\u8fd0\u52a8\u652f\u6491\uff09', font11, center, allBorders);
+    setCell(ws, 7, 3, '', font11, center, allBorders);
+    setCell(ws, 7, 4, '', font11, center, allBorders);
+    ws.mergeCells(7, 2, 7, 4);
+
+    // Row 8: Foot type
+    const footOpts = ['\u6b63\u5e38\u8db3','\u9ad8\u8db3\u5f13','\u6241\u5e73\u8db3','\u5bbd\u811a','\u7626\u811a'];
     const footChecked = (r.footType||[]).map(v=>footMap[v]||v);
-    const footStr = footOpts.map(opt => (footChecked.includes(opt) ? '☑' : '☐') + opt).join(' ');
-    addRow(['试穿人员脚型', footStr, '', '']);
-    merges.push({s:{r:7,c:1}, e:{r:7,c:3}});
+    const footStr = footOpts.map(opt => (footChecked.includes(opt) ? '\u2611' : '\u2610') + opt).join(' ');
+    setCell(ws, 8, 1, '\u8bd5\u7a7f\u4eba\u5458\u811a\u578b', font11, center, allBorders);
+    setCell(ws, 8, 2, footStr, font11, center, allBorders);
+    setCell(ws, 8, 3, '', font11, center, allBorders);
+    setCell(ws, 8, 4, '', font11, center, allBorders);
+    ws.mergeCells(8, 2, 8, 4);
 
-    // Row 8: 试穿员 | value | 试穿时长 | value
-    addRow(['试穿员', (r.tester||'') + (timeStr ? ' ' + timeStr : ''), '试穿时长', (r.duration||'')+'分钟']);
+    // Row 9: Tester name + time / duration
+    setCell(ws, 9, 1, '\u8bd5\u7a7f\u5458', font11, center, allBorders);
+    setCell(ws, 9, 2, (r.tester||'') + (timeStr ? ' ' + timeStr : ''), font11, center, allBorders);
+    setCell(ws, 9, 3, '\u8bd5\u7a7f\u65f6\u957f', font11, center, allBorders);
+    setCell(ws, 9, 4, (r.duration||'')+'\u5206\u949f', font11, center, allBorders);
 
-    // Row 9: 测试场景 (B10:D10 merged)
-    const sceneOpts = ['平地通勤','轻度运动','楼梯行走'];
+    // Row 10: Test scene
+    const sceneOpts = ['\u5e73\u5730\u901a\u52e4','\u8f7b\u5ea6\u8fd0\u52a8','\u697c\u68af\u884c\u8d70'];
     const sceneChecked = (r.scene||[]).map(v=>sceneMap[v]||v);
-    let sceneText = sceneOpts.map(opt => (sceneChecked.includes(opt) ? '☑' : '☐') + opt).join(' ');
-    if (r.sceneOther) { sceneText += ' ☑' + r.sceneOther; }
-    else { sceneText += ' ☐其他____'; }
-    addRow(['测试场景', sceneText, '', '']);
-    merges.push({s:{r:9,c:1}, e:{r:9,c:3}});
+    let sceneText = sceneOpts.map(opt => (sceneChecked.includes(opt) ? '\u2611' : '\u2610') + opt).join(' ');
+    if (r.sceneOther) { sceneText += ' \u2611' + r.sceneOther; }
+    else { sceneText += ' \u2610\u5176\u4ed6____'; }
+    setCell(ws, 10, 1, '\u6d4b\u8bd5\u573a\u666f', font11, center, allBorders);
+    setCell(ws, 10, 2, sceneText, font11, center, allBorders);
+    setCell(ws, 10, 3, '', font11, center, allBorders);
+    setCell(ws, 10, 4, '', font11, center, allBorders);
+    ws.mergeCells(10, 2, 10, 4);
 
-    // Row 10: 满意度总分 + 舒适等级 (B11:D11 merged)
+    // Row 11: Total score + comfort level
     const totalScore = r.totalScore || 0;
     let comfortLevel = '';
     if (totalScore >= 153) {
-      comfortLevel = '优秀：舒适度极佳，推荐量产';
+      comfortLevel = '\u4f18\u79c0\uff1a\u8212\u9002\u5ea6\u6781\u4f73\uff0c\u63a8\u8350\u91cf\u4ea7';
     } else if (totalScore >= 136) {
-      comfortLevel = '良好：整体舒适，次要问题可优化';
+      comfortLevel = '\u826f\u597d\uff1a\u6574\u4f53\u8212\u9002\uff0c\u6b21\u8981\u95ee\u9898\u53ef\u4f18\u5316';
     } else if (totalScore >= 119) {
-      comfortLevel = '一般：基本可穿，存在明显痛点需改进';
+      comfortLevel = '\u4e00\u822c\uff1a\u57fa\u672c\u53ef\u7a7f\uff0c\u5b58\u5728\u660e\u663e\u75db\u70b9\u9700\u6539\u8fdb';
     } else {
-      comfortLevel = '需改进：舒适度不足，需大幅改进';
+      comfortLevel = '\u9700\u6539\u8fdb\uff1a\u8212\u9002\u5ea6\u4e0d\u8db3\uff0c\u9700\u5927\u5e45\u6539\u8fdb';
     }
-    addRow(['满意度总分', (totalScore)+' /170  舒适等级：'+comfortLevel, '', '']);
-    merges.push({s:{r:10,c:1}, e:{r:10,c:3}});
+    setCell(ws, 11, 1, '\u6ee1\u610f\u5ea6\u603b\u5206', font11, center, allBorders);
+    setCell(ws, 11, 2, (totalScore)+' /170  \u8212\u9002\u7b49\u7ea7\uff1a'+comfortLevel, font11, center, allBorders);
+    setCell(ws, 11, 3, '', font11, center, allBorders);
+    setCell(ws, 11, 4, '', font11, center, allBorders);
+    ws.mergeCells(11, 2, 11, 4);
 
-    // Row 11-12: 试穿改良建议 (A12:A13 merged, B12:D13 merged)
-    addRow(['试穿改良建议', r.suggestion||'', '', '']);
-    merges.push({s:{r:11,c:0}, e:{r:12,c:0}});
-    merges.push({s:{r:11,c:1}, e:{r:12,c:3}});
-    addRow(['', '', '', '']);
+    // Row 12-13: Suggestion
+    setCell(ws, 12, 1, '\u8bd5\u7a7f\u6539\u826f\u5efa\u8bae', font11, center, allBorders);
+    setCell(ws, 12, 2, r.suggestion||'', font11, center, allBorders);
+    setCell(ws, 12, 3, '', font11, center, allBorders);
+    setCell(ws, 12, 4, '', font11, center, allBorders);
+    setCell(ws, 13, 1, '', font11, center, allBorders);
+    setCell(ws, 13, 2, '', font11, center, allBorders);
+    setCell(ws, 13, 3, '', font11, center, allBorders);
+    setCell(ws, 13, 4, '', font11, center, allBorders);
+    ws.mergeCells(12, 1, 13, 1);
+    ws.mergeCells(12, 2, 13, 4);
 
-    // Row 13: 核心测试项 (A14:D14 merged)
-    addRow(['核心测试项', '', '', '']);
-    merges.push({s:{r:13,c:0}, e:{r:13,c:3}});
+    // Row 14: Core test header
+    for(let c = 1; c <= 4; c++){
+      setCell(ws, 14, c, c === 1 ? '\u6838\u5fc3\u6d4b\u8bd5\u9879' : '', font11b, center, allBorders);
+    }
+    ws.mergeCells(14, 1, 14, 4);
 
-    // Row 14: 表头
-    addRow(['序号', '试穿测试项目', '测试结果二选一', '单项评分(1-5分)']);
+    // Row 15: Table header
+    setCell(ws, 15, 1, '\u5e8f\u53f7', font11b, center, allBorders);
+    setCell(ws, 15, 2, '\u8bd5\u7a7f\u6d4b\u8bd5\u9879\u76ee', font11b, center, allBorders);
+    setCell(ws, 15, 3, '\u6d4b\u8bd5\u7ed3\u679c\u4e8c\u9009\u4e00', font11b, center, allBorders);
+    setCell(ws, 15, 4, '\u5355\u9879\u8bc4\u5206(1-5\u5206)', font11b, center, allBorders);
 
-    // Row 15-38: 核心项 1-24
+    // Row 16-39: Core items seq 1-24
     const coreMap = TEMPLATE_ITEM_MAP.filter(t => t.seq <= 24);
     coreMap.forEach((t, i) => {
+      const rowNum = 16 + i;
       const d = (r.items||{})[String(t.itemId)] || {};
       const item = allItems.find(it => it.id === t.itemId);
-      const opts = item?.opts || [];
-      const displayText = opts.join('/');
-      const rowIdx = addRow([t.seq, t.name, displayText, d.score||'']);
-      cellMeta[`${rowIdx}_2`] = { opts, selected: d.result || '', displayText };
+      const opts = item ? item.opts : [];
+
+      setCell(ws, rowNum, 1, t.seq, font11, center, allBorders);
+      setCell(ws, rowNum, 2, t.name, font11, center, allBorders);
+
+      if(opts.length > 0){
+        const richText = [];
+        opts.forEach((opt, j) => {
+          const isSelected = opt === (d.result || '');
+          const color = isSelected ? 'FF000000' : 'FFBFBFBF';
+          richText.push({ text: opt, font: { color: { argb: color }, name: '\u7b49\u7ebf', size: 11 } });
+          if(j < opts.length - 1){
+            richText.push({ text: '/', font: { color: { argb: 'FFBFBFBF' }, name: '\u7b49\u7ebf', size: 11 } });
+          }
+        });
+        const cCell = ws.getRow(rowNum).getCell(3);
+        cCell.value = { richText: richText };
+        cCell.alignment = center;
+        cCell.border = allBorders;
+      } else {
+        setCell(ws, rowNum, 3, d.result||'', font11, center, allBorders);
+      }
+
+      setCell(ws, rowNum, 4, d.score||'', font11, center, allBorders);
     });
 
-    // Row 39: 拓展附加测试项 (A40:D40 merged)
-    addRow(['拓展附加测试项（深度研究可选）', '', '', '']);
-    merges.push({s:{r:39,c:0}, e:{r:39,c:3}});
+    // Row 40: Extra test header
+    for(let c = 1; c <= 4; c++){
+      setCell(ws, 40, c, c === 1 ? '\u62d3\u5c55\u9644\u52a0\u6d4b\u8bd5\u9879\uff08\u6df1\u5ea6\u7814\u7a76\u53ef\u9009\uff09' : '', font11b, center, allBorders);
+    }
+    ws.mergeCells(40, 1, 40, 4);
 
-    // Row 40: 表头
-    addRow(['序号', '补充舒适度测试项目', '结果选项', '单项评分(1-5分)']);
+    // Row 41: Table header
+    setCell(ws, 41, 1, '\u5e8f\u53f7', font11b, center, allBorders);
+    setCell(ws, 41, 2, '\u8865\u5145\u8212\u9002\u5ea6\u6d4b\u8bd5\u9879\u76ee', font11b, center, allBorders);
+    setCell(ws, 41, 3, '\u7ed3\u679c\u9009\u9879', font11b, center, allBorders);
+    setCell(ws, 41, 4, '\u5355\u9879\u8bc4\u5206(1-5\u5206)', font11b, center, allBorders);
 
-    // Row 41-50: 拓展项 25-34
+    // Row 42-51: Extra items seq 25-34
     const extraMap = TEMPLATE_ITEM_MAP.filter(t => t.seq > 24);
     extraMap.forEach((t, i) => {
+      const rowNum = 42 + i;
       const d = (r.items||{})[String(t.itemId)] || {};
       let name = t.name;
-      // B31和B33：括号内文本另起一行
       if (t.seq === 31 || t.seq === 33) {
-        name = name.replace(/（([^）]+)）/g, '\n（$1）');
+        name = name.replace(/\uff08([^\uff09]+)\uff09/g, '\n\uff08$1\uff09');
       }
       const item = allItems.find(it => it.id === t.itemId);
-      const opts = item?.opts || [];
-      const displayText = opts.join('/');
-      const rowIdx = addRow([t.seq, name, displayText, d.score||'']);
-      cellMeta[`${rowIdx}_2`] = { opts, selected: d.result || '', displayText };
+      const opts = item ? item.opts : [];
+
+      setCell(ws, rowNum, 1, t.seq, font11, center, allBorders);
+      setCell(ws, rowNum, 2, name, font11, centerWrap, allBorders);
+
+      if(opts.length > 0){
+        const richText = [];
+        opts.forEach((opt, j) => {
+          const isSelected = opt === (d.result || '');
+          const color = isSelected ? 'FF000000' : 'FFBFBFBF';
+          richText.push({ text: opt, font: { color: { argb: color }, name: '\u7b49\u7ebf', size: 11 } });
+          if(j < opts.length - 1){
+            richText.push({ text: '/', font: { color: { argb: 'FFBFBFBF' }, name: '\u7b49\u7ebf', size: 11 } });
+          }
+        });
+        const cCell = ws.getRow(rowNum).getCell(3);
+        cCell.value = { richText: richText };
+        cCell.alignment = center;
+        cCell.border = allBorders;
+      } else {
+        setCell(ws, rowNum, 3, d.result||'', font11, center, allBorders);
+      }
+
+      setCell(ws, rowNum, 4, d.score||'', font11, center, allBorders);
+
+      if (t.seq === 31 || t.seq === 33) {
+        ws.getRow(rowNum).height = 29;
+      }
     });
 
-    // Row 51: 评分说明（仅行52，不跨行53）
-    addRow(['评分说明：', '单项评分规则：5分=完全舒适无任何不适；4分=轻微不适，不影响穿着；3分=明显不适，可正常穿着但有痛点；2分=严重不适，勉强可穿着；1分=完全无法正常穿着。', '', '']);
-    merges.push({s:{r:51,c:1}, e:{r:51,c:3}});  // B52:D52合并，不跨行
-    addRow(['', '', '', '']);
+    // Row 52: Scoring rule
+    setCell(ws, 52, 1, '\u8bc4\u5206\u8bf4\u660e\uff1a', font11b, center, { top: thin, left: thin, right: thin });
+    setCell(ws, 52, 2, '\u5355\u9879\u8bc4\u5206\u89c4\u5219\uff1a5\u5206=\u5b8c\u5168\u8212\u9002\u65e0\u4efb\u4f55\u4e0d\u9002\uff1b4\u5206=\u8f7b\u5fae\u4e0d\u9002\uff0c\u4e0d\u5f71\u54cd\u7a7f\u7740\uff1b3\u5206=\u660e\u663e\u4e0d\u9002\uff0c\u53ef\u6b63\u5e38\u7a7f\u7740\u4f46\u6709\u75db\u70b9\uff1b2\u5206=\u4e25\u91cd\u4e0d\u9002\uff0c\u52c9\u5f3a\u53ef\u7a7f\u7740\uff1b1\u5206=\u5b8c\u5168\u65e0\u6cd5\u6b63\u5e38\u7a7f\u7740\u3002', font11b, centerWrap, { top: thin, left: thin });
+    setCell(ws, 52, 3, '', font11b, centerWrap, { top: thin });
+    setCell(ws, 52, 4, '', font11b, centerWrap, { top: thin, right: thin });
+    ws.mergeCells(52, 2, 52, 4);
+    ws.getRow(52).height = 29;
 
-    const ws = XLSX.utils.aoa_to_sheet(rows);
+    // Row 53: Empty row
+    setCell(ws, 53, 1, '', font11, center, { top: thin });
+    setCell(ws, 53, 2, '', font11, center, { top: thin });
+    setCell(ws, 53, 3, '', font11, center, { top: thin });
+    setCell(ws, 53, 4, '', font11, center, { top: thin });
+    ws.getRow(53).height = 29;
+  }
 
-    // 列宽
-    ws['!cols'] = [
-      { wch: 11.33 }, { wch: 32.80 }, { wch: 25.00 }, { wch: 15.40 }
-    ];
-
-    // 合并
-    ws['!merges'] = merges;
-
-    // 行高：默认14.5pt，评分说明行51-52为29pt
-    const totalRows = rows.length;
-    ws['!rows'] = [];
-    for(let i = 0; i < totalRows; i++){
-      ws['!rows'].push({ hpt: 14.5 });
-    }
-    ws['!rows'][47] = { hpt: 29 };
-    ws['!rows'][49] = { hpt: 29 };
-    ws['!rows'][51] = { hpt: 29 };
-    ws['!rows'][52] = { hpt: 29 };
-
-    // 遍历所有单元格设置样式
-    const range = XLSX.utils.decode_range(ws['!ref']);
-    for(let R = range.s.r; R <= range.e.r; R++){
-      for(let C = range.s.c; C <= range.e.c; C++){
-        const cellRef = XLSX.utils.encode_cell({r:R, c:C});
-        if(!ws[cellRef]){
-          ws[cellRef] = { t: 's', v: '' };
-        }
-        const cell = ws[cellRef];
-        cell.s = {};
-
-        // 标题行 R=0,1: 等线16号加粗, 居中, 无边框
-        if(R === 0 || R === 1){
-          if(R === 0 && C === 3){
-            cell.s.font = { name: '等线', sz: 11 };
-            cell.s.alignment = { horizontal: 'center', vertical: 'center' };
-          } else {
-            cell.s.font = { name: '等线', sz: 16, bold: true };
-            cell.s.alignment = { horizontal: 'center', vertical: 'center' };
-          }
-        }
-        // 基础信息栏 R=2: 等线11号加粗, 居中, 全边框
-        else if(R === 2){
-          cell.s.font = { name: '等线', sz: 11, bold: true };
-          cell.s.alignment = { horizontal: 'center', vertical: 'center' };
-          cell.s.border = allBorders;
-        }
-        // 核心测试项 R=13: 等线11号加粗, 居中, 全边框
-        else if(R === 13){
-          cell.s.font = { name: '等线', sz: 11, bold: true };
-          cell.s.alignment = { horizontal: 'center', vertical: 'center' };
-          cell.s.border = allBorders;
-        }
-        // 拓展附加测试项 R=39: 等线11号加粗, 居中, 全边框
-        else if(R === 39){
-          cell.s.font = { name: '等线', sz: 11, bold: true };
-          cell.s.alignment = { horizontal: 'center', vertical: 'center' };
-          cell.s.border = allBorders;
-        }
-        // 表头 R=14, R=40: 等线11号加粗, 垂直居中, B列居中
-        else if(R === 14 || R === 40){
-          cell.s.font = { name: '等线', sz: 11, bold: true };
-          cell.s.alignment = { horizontal: 'center', vertical: 'center' };
-          cell.s.border = allBorders;
-        }
-        // 评分说明 R=51(A52/B52): 加粗, 居中, A52左框线+B52右框线
-        else if(R === 51){
-          if(C === 0){
-            cell.s.font = { name: '等线', sz: 11, bold: true };
-            cell.s.alignment = { horizontal: 'center', vertical: 'center' };
-            cell.s.border = { top: thin, left: thin, right: thin };
-          } else if(C === 1){
-            cell.s.font = { name: '等线', sz: 11, bold: true };
-            cell.s.alignment = { horizontal: 'center', vertical: 'center', wrapText: true };
-            cell.s.border = { top: thin, left: thin };
-          } else if(C === 3){
-            cell.s.border = { top: thin, right: thin };
-          } else {
-            cell.s.border = { top: thin };
-          }
-        }
-        // 行53空行: 无左右下框线
-        else if(R === 52){
-          cell.s.border = { top: thin };
-        }
-        // 其他所有行: 等线11号, 垂直居中, B列居中, 全边框
-        else{
-          cell.s.font = { name: '等线', sz: 11 };
-          cell.s.alignment = { horizontal: 'center', vertical: 'center' };
-          cell.s.border = allBorders;
-
-          // 核心项和拓展项的C列：富文本颜色（选中黑色，未选中灰色）
-          if(C === 2 && cellMeta[`${R}_2`]){
-            const meta = cellMeta[`${R}_2`];
-            if(meta.opts.length > 0){
-              const parts = [];
-              meta.opts.forEach((opt, i) => {
-                const isSelected = opt === meta.selected;
-                const color = isSelected ? '000000' : 'BFBFBF';
-                parts.push({
-                  t: opt,
-                  s: { font: { color: { rgb: color }, name: '等线', sz: 11 } }
-                });
-                if(i < meta.opts.length - 1){
-                  parts.push({
-                    t: '/',
-                    s: { font: { color: { rgb: 'BFBFBF' }, name: '等线', sz: 11 } }
-                  });
-                }
-              });
-              const fullText = meta.opts.join('/');
-              cell.v = fullText;
-              cell.t = 'str';
-              cell.r = parts;
-              cell.s = { font: { name: '等线', sz: 11 }, alignment: { horizontal: 'center', vertical: 'center' }, border: allBorders };
-            }
-          }
-        }
-      }
-    }
-
-    const sheetName = (r.modelCode || '记录'+(idx+1)).replace(/[\\/\*\?\[\]:]/g,'_').substring(0,31);
-    XLSX.utils.book_append_sheet(wb, ws, sheetName);
-  });
-
+  const buffer = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
   const now = new Date().toISOString().slice(0,10);
-  XLSX.writeFile(wb, `试穿登记表_${now}.xlsx`);
-  toast('\u2705 已导出 '+recordsToExport.length+' 条记录');
+  a.download = '\u8bd5\u7a7f\u767b\u8bb0\u8868_' + now + '.xlsx';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('\u2705 \u5df2\u5bfc\u51fa ' + recordsToExport.length + ' \u6761\u8bb0\u5f55');
 }
 // ==================== 预览 ====================
 function previewRecord(id){
