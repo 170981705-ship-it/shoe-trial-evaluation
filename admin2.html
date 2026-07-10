@@ -444,10 +444,6 @@ async function doExportFormXLSX(recordsToExport){
     ws.getColumn(3).width = 25.00;
     ws.getColumn(4).width = 15.40;
 
-    for(let i = 1; i <= 53; i++){
-      ws.getRow(i).height = 14.5;
-    }
-
     const submitTime = r.createTime || r.submitTime || '';
     let timeStr = '';
     if (submitTime) {
@@ -654,26 +650,33 @@ async function doExportFormXLSX(recordsToExport){
       }
 
       setCell(ws, rowNum, 4, d.score||'', font11, center, allBorders);
-
-      if (t.seq === 31 || t.seq === 33) {
-        ws.getRow(rowNum).height = 29;
-      }
     });
 
     // Row 52: Scoring rule
-    setCell(ws, 52, 1, '\u8bc4\u5206\u8bf4\u660e\uff1a', font11b, center, { top: thin, left: thin, right: thin });
-    setCell(ws, 52, 2, '\u5355\u9879\u8bc4\u5206\u89c4\u5219\uff1a5\u5206=\u5b8c\u5168\u8212\u9002\u65e0\u4efb\u4f55\u4e0d\u9002\uff1b4\u5206=\u8f7b\u5fae\u4e0d\u9002\uff0c\u4e0d\u5f71\u54cd\u7a7f\u7740\uff1b3\u5206=\u660e\u663e\u4e0d\u9002\uff0c\u53ef\u6b63\u5e38\u7a7f\u7740\u4f46\u6709\u75db\u70b9\uff1b2\u5206=\u4e25\u91cd\u4e0d\u9002\uff0c\u52c9\u5f3a\u53ef\u7a7f\u7740\uff1b1\u5206=\u5b8c\u5168\u65e0\u6cd5\u6b63\u5e38\u7a7f\u7740\u3002', font11b, centerWrap, { top: thin, left: thin });
-    setCell(ws, 52, 3, '', font11b, centerWrap, { top: thin });
-    setCell(ws, 52, 4, '', font11b, centerWrap, { top: thin, right: thin });
+    const scoringBorders = [
+      { top: thin, left: thin, right: thin },  // A52: left + right (A-B separator)
+      { top: thin, left: thin },               // B52: left (A-B separator)
+      { top: thin },                            // C52: inside merge
+      { top: thin, right: thin }                // D52: right border of merged B:D
+    ];
+    for(let c = 1; c <= 4; c++){
+      setCell(ws, 52, c, c === 1 ? '\u8bc4\u5206\u8bf4\u660e\uff1a' : (c === 2 ? '\u5355\u9879\u8bc4\u5206\u89c4\u5219\uff1a5\u5206=\u5b8c\u5168\u8212\u9002\u65e0\u4efb\u4f55\u4e0d\u9002\uff1b4\u5206=\u8f7b\u5fae\u4e0d\u9002\uff0c\u4e0d\u5f71\u54cd\u7a7f\u7740\uff1b3\u5206=\u660e\u663e\u4e0d\u9002\uff0c\u53ef\u6b63\u5e38\u7a7f\u7740\u4f46\u6709\u75db\u70b9\uff1b2\u5206=\u4e25\u91cd\u4e0d\u9002\uff0c\u52c9\u5f3a\u53ef\u7a7f\u7740\uff1b1\u5206=\u5b8c\u5168\u65e0\u6cd5\u6b63\u5e38\u7a7f\u7740\u3002' : ''), font11b, centerWrap, scoringBorders[c-1]);
+    }
     ws.mergeCells(52, 2, 52, 4);
-    ws.getRow(52).height = 29;
 
     // Row 53: Empty row
-    setCell(ws, 53, 1, '', font11, center, { top: thin });
-    setCell(ws, 53, 2, '', font11, center, { top: thin });
-    setCell(ws, 53, 3, '', font11, center, { top: thin });
-    setCell(ws, 53, 4, '', font11, center, { top: thin });
+    for(let c = 1; c <= 4; c++){
+      setCell(ws, 53, c, '', font11, center, { top: thin });
+    }
+
+    // 统一设置行高（必须放在所有单元格写入之后）
+    for(let i = 1; i <= 53; i++){
+      ws.getRow(i).height = 14.5;
+    }
+    ws.getRow(52).height = 29;
     ws.getRow(53).height = 29;
+    ws.getRow(48).height = 29; // seq=31
+    ws.getRow(50).height = 29; // seq=33
   }
 
   const buffer = await wb.xlsx.writeBuffer();
