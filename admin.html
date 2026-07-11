@@ -674,9 +674,12 @@ async function doExportFormXLSX(recordsToExport){
     setCell(ws, 53, 4, '', font11, center, { top: thin });
 
     // === ALL ROW HEIGHTS SET AT THE VERY END (after all cell operations) ===
-    // Default height for all rows
+    // Set worksheet default row height as a fallback
+    ws.properties.defaultRowHeight = 14.5;
+    // Explicitly set each row height
     for(let i = 1; i <= 53; i++){
-      ws.getRow(i).height = 14.5;
+      const row = ws.getRow(i);
+      row.height = 14.5;
     }
     // Special heights: row 48 (seq=31), row 50 (seq=33), row 52 (scoring), row 53 (empty)
     ws.getRow(48).height = 29;
@@ -690,8 +693,8 @@ async function doExportFormXLSX(recordsToExport){
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  const now = new Date().toISOString().slice(0,10);
-  a.download = '\u8bd5\u7a7f\u767b\u8bb0\u8868_' + now + '.xlsx';
+  const exportModelCode = (recordsToExport[0] && recordsToExport[0].modelCode) || '\u672a\u77e5\u978b\u6b3e';
+  a.download = exportModelCode + '\u8bd5\u7a7f\u8bc4\u4ef7\u8868.xlsx';
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
