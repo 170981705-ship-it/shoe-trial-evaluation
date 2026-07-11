@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>试穿评价管理端 v2</title>
+<style>
+:root {--primary:#1a1a2e;--accent:#e94560;--bg:#f5f5f5;--card:#fff;--text:#333;--text-light:#888;--border:#e0e0e0;--green:#4caf50;--orange:#ff9800;--red:#f44336;--blue:#2196f3;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.6;}
+header{background:var(--primary);color:#fff;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;}
+header h1{font-size:18px;font-weight:600;}
+header .stats{font-size:13px;opacity:.85;}
+.toolbar{background:var(--card);border-bottom:1px solid var(--border);padding:12px 20px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;position:sticky;top:56px;z-index:99;}
+.toolbar input,.toolbar select,.toolbar button{padding:8px 14px;border:1px solid var(--border);border-radius:6px;font-size:13px;outline:none;background:var(--card);}
+.toolbar input:focus,.toolbar select:focus{border-color:var(--accent);}
+.toolbar button{cursor:pointer;font-weight:500;transition:.2s;}
+.toolbar button:hover{opacity:.85;}
+.btn-accent{background:var(--accent);color:#fff;border-color:var(--accent);}
+.btn-blue{background:var(--blue);color:#fff;border-color:var(--blue);}
+.btn-green{background:var(--green);color:#fff;border-color:var(--green);}
+.btn-purple{background:#7c3aed;color:#fff;border-color:#7c3aed;}
+.btn-orange{background:#ea580c;color:#fff;border-color:#ea580c;}
+.btn-outline{background:transparent;color:var(--accent);border-color:var(--accent);}
+.container{max-width:1200px;margin:0 auto;padding:20px;}
+.record-list{display:flex;flex-direction:column;gap:12px;}
+.record-card{background:var(--card);border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08);overflow:hidden;cursor:pointer;transition:.2s;}
+.record-card:hover{box-shadow:0 2px 8px rgba(0,0,0,.12);}
+.record-card.selected{border:2px solid var(--accent);}
+.record-header{padding:14px 18px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);}
+.record-header .left{display:flex;align-items:center;gap:12px;}
+.record-header .model{font-weight:700;font-size:15px;}
+.record-header .tester{color:var(--text-light);}
+.record-header .badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:600;}
+.badge-excellent{background:#e8f5e9;color:#2e7d32;}
+.badge-good{background:#e3f2fd;color:#1565c0;}
+.badge-ok{background:#fff3e0;color:#e65100;}
+.badge-poor{background:#ffebee;color:#c62828;}
+.record-header .score{font-size:20px;font-weight:700;color:var(--accent);}
+.record-body{padding:14px 18px;display:none;}
+.record-body.open{display:block;}
+.info-row{display:flex;gap:24px;margin-bottom:10px;flex-wrap:wrap;font-size:13px;}
+.info-row span{color:var(--text-light);}
+.info-row strong{color:var(--text);}
+.detail-table{width:100%;border-collapse:collapse;margin-top:10px;font-size:13px;}
+.detail-table th,.detail-table td{padding:8px 10px;text-align:left;border:1px solid var(--border);}
+.detail-table th{background:#f5f5f5;font-weight:600;}
+.detail-table tr:hover{background:#fafafa;}
+.detail-table .seq{text-align:center;width:50px;color:var(--text-light);}
+.detail-table .score-cell{text-align:center;width:80px;font-weight:600;}
+.score-5{color:#2e7d32;}
+.score-4{color:#1565c0;}
+.score-3{color:#e65100;}
+.score-2{color:#ef6c00;}
+.score-1{color:#c62828;}
+.record-footer{padding:10px 18px;border-top:1px solid var(--border);display:flex;gap:8px;font-size:13px;color:var(--text-light);}
+.empty-state{text-align:center;padding:60px 20px;color:var(--text-light);}
+.empty-state .icon{font-size:48px;margin-bottom:12px;}
+.batch-bar{background:var(--accent);color:#fff;padding:10px 20px;display:none;justify-content:space-between;align-items:center;position:sticky;bottom:0;border-radius:10px 10px 0 0;font-size:14px;}
+.batch-bar.show{display:flex;}
+.batch-bar button{background:#fff;color:var(--accent);border:none;padding:6px 16px;border-radius:6px;font-weight:600;cursor:pointer;}
+.loading{text-align:center;padding:40px;color:var(--text-light);}
+.spinner{display:inline-block;width:24px;height:24px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin-right:8px;vertical-align:middle;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.preview-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:200;display:none;justify-content:center;align-items:center;}
+.preview-overlay.show{display:flex;}
+.preview-content{background:var(--card);border-radius:12px;width:90%;max-width:700px;max-height:85vh;overflow-y:auto;padding:0;}
+.preview-header{background:var(--primary);color:#fff;padding:14px 20px;border-radius:12px 12px 0 0;display:flex;justify-content:space-between;align-items:center;}
+.preview-header button{background:none;border:none;color:#fff;font-size:20px;cursor:pointer;}
+.preview-body{padding:20px;font-size:13px;}
+.preview-body table{width:100%;border-collapse:collapse;margin-top:10px;}
+.preview-body th,.preview-body td{padding:6px 10px;border:1px solid var(--border);}
+.preview-body th{background:#f5f5f5;}
+.preview-body h3{font-size:16px;text-align:center;margin-bottom:12px;}
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:var(--primary);color:#fff;padding:10px 24px;border-radius:8px;z-index:300;font-size:14px;opacity:0;transition:opacity .3s;}
+.toast.show{opacity:1;}
+.check-col{width:40px;text-align:center;}
+.check-col input{width:16px;height:16px;cursor:pointer;}
+</style>
+</head>
+<body>
+<header>
+  <h1>📋 试穿评价管理端</h1>
+  <span class="stats" id="stats">加载中...</span>
+</header>
+
+<div class="toolbar">
+  <input type="text" id="searchInput" placeholder="🔍 搜索货号/试穿员..." oninput="renderList()">
+  <select id="levelFilter" onchange="renderList()">
+    <option value="">全部等级</option>
+    <option value="优秀">优秀 (≥153)</option>
+    <option value="良好">良好 (136-152)</option>
+    <option value="一般">一般 (119-135)</option>
+    <option value="需改进">需改进 (&lt;119)</option>
+  </select>
+  <select id="dateFilter" onchange="renderList()">
+    <option value="">全部时间</option>
+    <option value="today">今天</option>
+    <option value="week">本周</option>
+    <option value="month">本月</option>
+  </select>
+  <span style="flex:1"></span>
+  <button class="btn-outline" onclick="selectAll()">全选</button>
+  <button class="btn-outline" onclick="deselectAll()">取消全选</button>
+  <button class="btn-blue" onclick="refreshData()">🔄 刷新数据</button>
+  <button class="btn-accent" onclick="exportSelected()">📥 导出 Excel</button>
+  <button class="btn-purple" onclick="exportSelectedPDF()">📄 导出 PDF</button>
+  <button class="btn-orange" onclick="exportSelectedCSV()">📊 导出 CSV</button>
+  <button class="btn-green" onclick="downloadJSON()">💾 备份JSON</button>
+</div>
+
+<div class="container">
+  <div class="loading" id="loading"><span class="spinner"></span>加载试穿记录中...</div>
+  <div class="empty-state" id="empty" style="display:none">
+    <div class="icon">📭</div>
+    <p>暂无试穿记录</p>
+    <p style="font-size:12px;margin-top:4px">试穿员提交后数据将自动同步到这里</p>
+  </div>
+  <div class="record-list" id="recordList"></div>
+</div>
+
+<div class="batch-bar" id="batchBar">
+  <span id="batchInfo">已选 0 条</span>
+  <div style="display:flex;gap:8px">
+    <button onclick="exportSelected()">📥 Excel</button>
+    <button onclick="exportSelectedPDF()">📄 PDF</button>
+    <button onclick="exportSelectedCSV()">📊 CSV</button>
+    <button onclick="deselectAll()">取消</button>
+  </div>
+</div>
+
+<div class="preview-overlay" id="previewOverlay" onclick="if(event.target===this)closePreview()">
+  <div class="preview-content">
+    <div class="preview-header">
+      <span>📋 登记表预览</span>
+      <button onclick="closePreview()">✕</button>
+    </div>
+    <div class="preview-body" id="previewBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js?v=2"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+<script>
+// ==================== 数据定义 ====================
+const allItems = [
+  {id:1, name:'鞋面整体的舒适度', opts:['舒适','不舒适'], category:'core'},
+  {id:2, name:'内里整体的舒适度', opts:['舒适','不舒适'], category:'core'},
+  {id:3, name:'鞋垫（趟底）整体的舒适度', opts:['舒适','不舒适'], category:'core'},
+  {id:'3-1', name:'鞋垫软硬度感知', opts:['过软','适中','偏硬'], category:'core'},
+  {id:'3-2', name:'穿30min后鞋垫是否塌陷', opts:['是','否'], category:'core'},
+  {id:4, name:'走路时鞋子舒适度和整体体感', opts:['舒适','不舒适'], category:'core'},
+  {id:5, name:'鞋底前掌弯折是否板脚', opts:['会','不会'], category:'core'},
+  {id:'5-1', name:'前掌1/3处能否自然弯折', opts:['是','否'], category:'core'},
+  {id:6, name:'鞋中腰足弓支撑位置与贴合度', opts:['舒适','不舒适'], category:'core'},
+  {id:7, name:'鞋底止滑性能体感', opts:['好','不好'], category:'core'},
+  {id:8, name:'鞋底耐磨性能长期行走体感', opts:['好','不好'], category:'core'},
+  {id:9, name:'前掌脚趾活动空间是否充足', opts:['是','否'], category:'core'},
+  {id:10, name:'鞋前掌是否磨脚', opts:['是','否'], category:'core'},
+  {id:11, name:'鞋后跟或后跟内里是否磨脚', opts:['是','否'], category:'core'},
+  {id:12, name:'鞋帮脚踝位置是否磨脚', opts:['是','否'], category:'core'},
+  {id:13, name:'行走过程后跟是否滑跟脱脚', opts:['是','否'], category:'core'},
+  {id:14, name:'足底压力分布是否均匀', opts:['是','否'], category:'core'},
+  {id:15, name:'鞋前掌包裹是否过松晃脚', opts:['会','不会'], category:'core'},
+  {id:16, name:'鞋后跟包裹锁定效果', opts:['好','不好'], category:'core'},
+  {id:17, name:'鞋身透气性，是否闷热捂脚', opts:['会','不会'], category:'core'},
+  {id:18, name:'整鞋重量体感，行走是否笨重', opts:['会','不会'], category:'core'},
+  {id:19, name:'长时间行走身体是否后仰失衡', opts:['会','不会'], category:'core'},
+  {id:'19-1', name:'单腿站立中底侧倾感', opts:['无','轻微','明显'], category:'core'},
+  {id:20, name:'脱袜后足部是否存在压痕、磨红痕迹', opts:['有','没有'], category:'core'},
+  {id:21, name:'鞋舌对脚背的压迫感', opts:['无压迫','轻微压迫','明显挤压'], category:'extra'},
+  {id:22, name:'鞋口后帮跟腱摩擦不适感', opts:['顺滑','轻微摩擦','刺痛磨皮'], category:'extra'},
+  {id:23, name:'出汗后内里黏脚程度', opts:['干爽','轻微黏腻','严重闷黏'], category:'extra'},
+  {id:24, name:'上下楼梯时前掌顶脚情况', opts:['无顶脚','轻微顶脚','强烈挤压'], category:'extra'},
+  {id:25, name:'长时间行走后小腿疲劳度', opts:['无疲劳','轻微酸胀','明显酸痛'], category:'extra'},
+  {id:26, name:'湿地面行走抓地安全感', opts:['稳定','轻微打滑','容易打滑'], category:'extra'},
+  {id:27, name:'鞋垫压缩回弹感知（穿前vs穿30min后跟高差）', opts:['＜2mm','2-5mm','＞5mm'], category:'extra'},
+  {id:28, name:'中底弯折点位置判定', opts:['前1/3跖骨处','偏后','偏前'], category:'extra'},
+  {id:29, name:'疲劳态复评（60min后重测第4、14、25项）', opts:['同原项规则'], category:'extra'},
+  {id:30, name:'路感清晰度', opts:['模糊','适中','清晰'], category:'extra'}
+];
+
+const TEMPLATE_ITEM_MAP = [
+  {seq:1, itemId:1, name:'鞋面整体的舒适度', opts:'舒适/不舒适'},
+  {seq:2, itemId:2, name:'内里整体的舒适度', opts:'舒适/不舒适'},
+  {seq:3, itemId:3, name:'鞋垫（趟底）整体的舒适度', opts:'舒适/不舒适'},
+  {seq:4, itemId:'3-1', name:'鞋垫软硬度感知', opts:'过软/适中/偏硬'},
+  {seq:5, itemId:'3-2', name:'穿30min后鞋垫是否塌陷', opts:'是/否'},
+  {seq:6, itemId:4, name:'走路时鞋子舒适度和整体体感', opts:'舒适/不舒适'},
+  {seq:7, itemId:5, name:'鞋底前掌弯折是否板脚', opts:'会/不会'},
+  {seq:8, itemId:'5-1', name:'前掌1/3处能否自然弯折', opts:'是/否'},
+  {seq:9, itemId:6, name:'鞋中腰足弓支撑位置与贴合度', opts:'舒适/不舒适'},
+  {seq:10, itemId:7, name:'鞋底止滑性能体感', opts:'好/不好'},
+  {seq:11, itemId:8, name:'鞋底耐磨性能长期行走体感', opts:'好/不好'},
+  {seq:12, itemId:9, name:'前掌脚趾活动空间是否充足', opts:'是/否'},
+  {seq:13, itemId:10, name:'鞋前掌是否磨脚', opts:'是/否'},
+  {seq:14, itemId:11, name:'鞋后跟或后跟内里是否磨脚', opts:'是/否'},
+  {seq:15, itemId:12, name:'鞋帮脚踝位置是否磨脚', opts:'是/否'},
+  {seq:16, itemId:13, name:'行走过程后跟是否滑跟脱脚', opts:'是/否'},
+  {seq:17, itemId:14, name:'足底压力分布是否均匀', opts:'是/否'},
+  {seq:18, itemId:15, name:'鞋前掌包裹是否过松晃脚', opts:'会/不会'},
+  {seq:19, itemId:16, name:'鞋后跟包裹锁定效果', opts:'好/不好'},
+  {seq:20, itemId:17, name:'鞋身透气性，是否闷热捂脚', opts:'会/不会'},
+  {seq:21, itemId:18, name:'整鞋重量体感，行走是否笨重', opts:'会/不会'},
+  {seq:22, itemId:19, name:'长时间行走身体是否后仰失衡', opts:'会/不会'},
+  {seq:23, itemId:'19-1', name:'单腿站立中底侧倾感', opts:'无/轻微/明显'},
+  {seq:24, itemId:20, name:'脱袜后足部是否存在压痕、磨红痕迹', opts:'有/没有'},
+  {seq:25, itemId:21, name:'鞋舌对脚背的压迫感', opts:'无压迫/轻微压迫/明显挤压'},
+  {seq:26, itemId:22, name:'鞋口后帮跟腱摩擦不适感', opts:'顺滑/轻微摩擦/刺痛磨皮'},
+  {seq:27, itemId:23, name:'出汗后内里黏脚程度', opts:'干爽/轻微黏腻/严重闷黏'},
+  {seq:28, itemId:24, name:'上下楼梯时前掌顶脚情况', opts:'无顶脚/轻微顶脚/强烈挤压'},
+  {seq:29, itemId:25, name:'长时间行走后小腿疲劳度', opts:'无疲劳/轻微酸胀/明显酸痛'},
+  {seq:30, itemId:26, name:'湿地面行走抓地安全感', opts:'稳定/轻微打滑/容易打滑'},
+  {seq:31, itemId:27, name:'鞋垫压缩回弹感知（穿前vs穿30min后跟高差）', opts:'＜2mm/2-5mm/＞5mm'},
+  {seq:32, itemId:28, name:'中底弯折点位置判定', opts:'前1/3跖骨处/偏后/偏前'},
+  {seq:33, itemId:29, name:'疲劳态复评（60min后重测第4、14、25项）', opts:'同原项规则'},
+  {seq:34, itemId:30, name:'路感清晰度', opts:'模糊/适中/清晰'}
+];
+
+const footMap = {normal:'正常足',high_arch:'高足弓',flat:'扁平足',wide:'宽脚',narrow:'瘦脚'};
+const sceneMap = {commute:'平地通勤',sport:'轻度运动',stairs:'楼梯行走',other:'其他'};
+
+const comfortLevels = [
+  {min:153, label:'优秀', cls:'badge-excellent'},
+  {min:136, label:'良好', cls:'badge-good'},
+  {min:119, label:'一般', cls:'badge-ok'},
+  {min:0, label:'需改进', cls:'badge-poor'}
+];
+
+function getLevel(total){
+  for(const lv of comfortLevels){if(total>=lv.min)return lv;}
+  return comfortLevels[comfortLevels.length-1];
+}
+
+// ==================== Gist 数据读取 ====================
+const GIST_ID = '870b9dbea2d0b68d9a5775d90dd2610f';
+const GIST_FILENAME = 'trial_records.json';
+const GIST_TOKEN = ['ghp','_UM','YB2','gjx','Jn5','mMq','S12','bPe','iXE','QG7','qeO','C0I','2b3','X'].join('');
+
+let records = [];
+let selectedIds = new Set();
+let expandedId = null;
+
+async function refreshData(){
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('empty').style.display = 'none';
+  document.getElementById('recordList').innerHTML = '';
+  try {
+    const resp = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+      headers: {'Authorization':`token ${GIST_TOKEN}`,'Accept':'application/vnd.github+json'}
+    });
+    if(!resp.ok) throw new Error('Gist fetch failed: '+resp.status);
+    const gist = await resp.json();
+    records = JSON.parse(gist.files[GIST_FILENAME].content || '[]');
+    toast('✅ 数据已刷新，共 '+records.length+' 条记录');
+  } catch(e){
+    console.error(e);
+    toast('⚠️ 数据加载失败: '+e.message);
+  }
+  document.getElementById('loading').style.display = 'none';
+  renderList();
+}
+
+function toast(msg){
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'), 2500);
+}
+
+function fmtTime(iso){
+  if(!iso)return '';
+  try{return new Date(iso).toLocaleString('zh-CN',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});}
+  catch(e){return iso;}
+}
+
+function renderList(){
+  let filtered = [...records];
+  const search = document.getElementById('searchInput').value.trim().toLowerCase();
+  const level = document.getElementById('levelFilter').value;
+  const dateF = document.getElementById('dateFilter').value;
+
+  if(search){
+    filtered = filtered.filter(r =>
+      (r.modelCode||'').toLowerCase().includes(search) ||
+      (r.tester||'').toLowerCase().includes(search)
+    );
+  }
+  if(level){
+    filtered = filtered.filter(r => getLevel(r.totalScore||0).label === level);
+  }
+  if(dateF){
+    const now = new Date();
+    const today = new Date(now.getFullYear(),now.getMonth(),now.getDate());
+    filtered = filtered.filter(r => {
+      const d = new Date(r.createTime);
+      if(dateF==='today') return d >= today;
+      if(dateF==='week'){
+        const weekAgo = new Date(today); weekAgo.setDate(weekAgo.getDate()-7);
+        return d >= weekAgo;
+      }
+      if(dateF==='month'){
+        const monthAgo = new Date(today); monthAgo.setMonth(monthAgo.getMonth()-1);
+        return d >= monthAgo;
+      }
+      return true;
+    });
+  }
+
+  document.getElementById('stats').textContent = `共 ${filtered.length} 条记录`;
+  document.getElementById('empty').style.display = filtered.length===0 && records.length===0 ? 'block' : 'none';
+
+  const list = document.getElementById('recordList');
+  list.innerHTML = filtered.map((r,i) => {
+    const lv = getLevel(r.totalScore||0);
+    const isOpen = expandedId === r.id;
+    const isSel = selectedIds.has(r.id);
+    const footText = (r.footType||[]).map(v=>footMap[v]||v).join('、')||'正常足';
+    const sceneText = (r.scene||[]).map(v=>sceneMap[v]||v).join('、')+(r.sceneOther?'、'+r.sceneOther:'');
+    const completed = Object.keys(r.items||{}).length;
+
+    let detailHTML = '';
+    if(isOpen){
+      const itemRows = TEMPLATE_ITEM_MAP.map(t => {
+        const d = (r.items||{})[String(t.itemId)] || {};
+        const scoreCls = d.score ? 'score-'+d.score : '';
+        return `<tr>
+          <td class="seq">${t.seq}</td>
+          <td>${t.name}</td>
+          <td>${d.result||'-'}</td>
+          <td class="score-cell ${scoreCls}">${d.score||'-'}</td>
+        </tr>`;
+      }).join('');
+
+      detailHTML = `
+        <div class="info-row">
+          <span>楦型: <strong>${r.lastShape||'-'}</strong></span>
+          <span>试穿时长: <strong>${r.duration||'-'}分钟</strong></span>
+          <span>鞋垫硬度: <strong>${r.hardnessInsole||'-'} Shore A</strong></span>
+          <span>外底硬度: <strong>${r.hardnessOutsole||'-'} Shore A</strong></span>
+          <span>中底硬度: <strong>${r.hardnessMidsole||'-'} Shore C</strong></span>
+        </div>
+        <div class="info-row">
+          <span>脚型: <strong>${footText}</strong></span>
+          <span>场景: <strong>${sceneText}</strong></span>
+          <span>改良建议: <strong>${r.suggestion||'无'}</strong></span>
+        </div>
+        <table class="detail-table">
+          <thead><tr><th>序号</th><th>试穿测试项目</th><th>测试结果</th><th>评分</th></tr></thead>
+          <tbody>${itemRows}</tbody>
+        </table>`;
+    }
+
+    return `<div class="record-card ${isSel?'selected':''}" id="card-${r.id}">
+      <div class="record-header" onclick="toggleRecord('${r.id}')">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div class="check-col" onclick="event.stopPropagation()">
+            <input type="checkbox" ${isSel?'checked':''} onchange="toggleSelect('${r.id}')">
+          </div>
+          <span class="model">${r.modelCode||'未填'}</span>
+          <span class="tester">试穿员: ${r.tester||'未知'}</span>
+          <span class="badge ${lv.cls}">${lv.label}</span>
+          <span style="font-size:12px;color:var(--text-light)">${completed}/34项</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:16px;">
+          <span style="font-size:12px;color:var(--text-light)">${fmtTime(r.createTime)}</span>
+          <span class="score">${r.totalScore||0}/170</span>
+        </div>
+      </div>
+      <div class="record-body ${isOpen?'open':''}">${detailHTML}</div>
+    </div>`;
+  }).join('');
+
+  updateBatchBar();
+}
+
+function toggleRecord(id){
+  expandedId = expandedId===id ? null : id;
+  renderList();
+}
+
+function toggleSelect(id){
+  if(selectedIds.has(id)) selectedIds.delete(id); else selectedIds.add(id);
+  renderList();
+}
+
+function selectAll(){
+  records.forEach(r => selectedIds.add(r.id));
+  renderList();
+}
+
+function deselectAll(){
+  selectedIds.clear();
+  renderList();
+}
+
+function updateBatchBar(){
+  const bar = document.getElementById('batchBar');
+  if(selectedIds.size > 0){
+    bar.classList.add('show');
+    document.getElementById('batchInfo').textContent = `已选 ${selectedIds.size} 条记录`;
+  } else {
+    bar.classList.remove('show');
+  }
+}
+
+// ==================== 导出登记表 ====================
+function exportSelected(){
+  const toExport = records.filter(r => selectedIds.has(r.id));
+  if(toExport.length === 0){
+    if(records.length === 0) return toast('⚠️ 暂无记录');
+    if(!confirm(`未选中任何记录，是否导出全部 ${records.length} 条？`)) return;
+    toExport.push(...records);
+  }
+  doExportFormXLSX(toExport);
+}
+
+async function doExportFormXLSX(recordsToExport){
+  if(typeof ExcelJS === 'undefined') return toast('\u26a0\ufe0f \u6b63\u5728\u52a0\u8f7Excel\u5e93\uff0c\u8bf7\u7a0d\u540e\u518d\u8bd5');
+  const wb = new ExcelJS.Workbook();
+
+  const thin = { style: 'thin', color: { argb: 'FF000000' } };
+  const allBorders = { top: thin, bottom: thin, left: thin, right: thin };
+  const font11 = { name: '\u7b49\u7ebf', size: 11 };
+  const font11b = { name: '\u7b49\u7ebf', size: 11, bold: true };
+  const font16b = { name: '\u7b49\u7ebf', size: 16, bold: true };
+  const center = { horizontal: 'center', vertical: 'center' };
+  const centerWrap = { horizontal: 'center', vertical: 'center', wrapText: true };
+
+  function setCell(ws, row, col, value, font, alignment, border){
+    const cell = ws.getRow(row).getCell(col);
+    if(value !== null) cell.value = value;
+    if(font) cell.font = font;
+    if(alignment) cell.alignment = alignment;
+    if(border) cell.border = border;
+    return cell;
+  }
+
+  for(let idx = 0; idx < recordsToExport.length; idx++){
+    const r = recordsToExport[idx];
+    const sheetName = ((r.modelCode||'\u8bb0\u5f55'+(idx+1))+'\u8bd5\u7a7f\u8bc4\u4ef7\u8868').replace(/[\\/\*\?\[\]:]/g,'_').substring(0,31);
+    const ws = wb.addWorksheet(sheetName);
+
+    ws.getColumn(1).width = 11.33;
+    ws.getColumn(2).width = 32.80;
+    ws.getColumn(3).width = 25.00;
+    ws.getColumn(4).width = 15.40;
+
+    const submitTime = r.createTime || r.submitTime || '';
+    let timeStr = '';
+    if (submitTime) {
+      const d = new Date(submitTime);
+      if (!isNaN(d.getFullYear())) {
+        timeStr = d.getFullYear() + '\u5e74' + (d.getMonth()+1) + '\u6708' + d.getDate() + '\u65e5' + d.getHours() + '\uff1a' + String(d.getMinutes()).padStart(2,'0');
+      }
+    }
+    if (!timeStr && r.id) {
+      try {
+        const ts = parseInt(r.id, 36);
+        const d = new Date(ts);
+        if (!isNaN(d.getFullYear()) && d.getFullYear() > 2020) {
+          timeStr = d.getFullYear() + '\u5e74' + (d.getMonth()+1) + '\u6708' + d.getDate() + '\u65e5' + d.getHours() + '\uff1a' + String(d.getMinutes()).padStart(2,'0');
+        }
+      } catch(e) {}
+    }
+
+    // Row 1-2: Title
+    for(let c = 1; c <= 4; c++){
+      setCell(ws, 1, c, c === 1 ? '\u8fd0\u52a8\u4f11\u95f2\u978b\u6574\u978b\u8212\u9002\u5ea6\u4e3b\u89c2\u8bd5\u7a7f\u8bc4\u4ef7\u8868' : '', font16b, center, null);
+      setCell(ws, 2, c, '', font16b, center, null);
+    }
+    ws.mergeCells(1, 1, 2, 4);
+
+    // Row 3: Basic info header
+    for(let c = 1; c <= 4; c++){
+      setCell(ws, 3, c, c === 1 ? '\u57fa\u7840\u4fe1\u606f\u680f' : '', font11b, center, allBorders);
+    }
+    ws.mergeCells(3, 1, 3, 4);
+
+    // Row 4: Model code / last shape
+    setCell(ws, 4, 1, '\u978b\u6b3e\u8d27\u53f7', font11, center, allBorders);
+    setCell(ws, 4, 2, r.modelCode||'', font11, center, allBorders);
+    setCell(ws, 4, 3, '\u69e5\u578b', font11, center, allBorders);
+    setCell(ws, 4, 4, r.lastShape||'', font11, center, allBorders);
+
+    // Row 5: Insole hardness
+    setCell(ws, 5, 1, '\u978b\u57ab\u786c\u5ea6', font11, center, allBorders);
+    setCell(ws, 5, 2, (r.hardnessInsole||'____')+' Shore A\uff08\u53c2\u8003\uff1a25-35\u8d85\u8f6f/36-45\u9002\u4e2d/46-60\u504f\u786c\uff09', font11, center, allBorders);
+    setCell(ws, 5, 3, '', font11, center, allBorders);
+    setCell(ws, 5, 4, '', font11, center, allBorders);
+    ws.mergeCells(5, 2, 5, 4);
+
+    // Row 6: Outsole hardness
+    setCell(ws, 6, 1, '\u5916\u5e95\u786c\u5ea6', font11, center, allBorders);
+    setCell(ws, 6, 2, (r.hardnessOutsole||'____')+' Shore A\uff08\u53c2\u8003\uff1a55-65\u8010\u78e8\u6b62\u6ed1\uff09', font11, center, allBorders);
+    setCell(ws, 6, 3, '', font11, center, allBorders);
+    setCell(ws, 6, 4, '', font11, center, allBorders);
+    ws.mergeCells(6, 2, 6, 4);
+
+    // Row 7: Midsole hardness
+    setCell(ws, 7, 1, '\u4e2d\u5e95\u786c\u5ea6', font11, center, allBorders);
+    setCell(ws, 7, 2, (r.hardnessMidsole||'____')+' Shore C\uff08\u53c2\u8003\uff1a40-50\u901a\u52e4\u751c\u533a/51-60\u8fd0\u52a8\u652f\u6491\uff09', font11, center, allBorders);
+    setCell(ws, 7, 3, '', font11, center, allBorders);
+    setCell(ws, 7, 4, '', font11, center, allBorders);
+    ws.mergeCells(7, 2, 7, 4);
+
+    // Row 8: Foot type
+    const footOpts = ['\u6b63\u5e38\u8db3','\u9ad8\u8db3\u5f13','\u6241\u5e73\u8db3','\u5bbd\u811a','\u7626\u811a'];
+    const footChecked = (r.footType||[]).map(v=>footMap[v]||v);
+    const footStr = footOpts.map(opt => (footChecked.includes(opt) ? '\u2611' : '\u2610') + opt).join(' ');
+    setCell(ws, 8, 1, '\u8bd5\u7a7f\u4eba\u5458\u811a\u578b', font11, center, allBorders);
+    setCell(ws, 8, 2, footStr, font11, center, allBorders);
+    setCell(ws, 8, 3, '', font11, center, allBorders);
+    setCell(ws, 8, 4, '', font11, center, allBorders);
+    ws.mergeCells(8, 2, 8, 4);
+
+    // Row 9: Tester name + time / duration
+    setCell(ws, 9, 1, '\u8bd5\u7a7f\u5458', font11, center, allBorders);
+    setCell(ws, 9, 2, (r.tester||'') + (timeStr ? ' ' + timeStr : ''), font11, center, allBorders);
+    setCell(ws, 9, 3, '\u8bd5\u7a7f\u65f6\u957f', font11, center, allBorders);
+    setCell(ws, 9, 4, (r.duration||'')+'\u5206\u949f', font11, center, allBorders);
+
+    // Row 10: Test scene
+    const sceneOpts = ['\u5e73\u5730\u901a\u52e4','\u8f7b\u5ea6\u8fd0\u52a8','\u697c\u68af\u884c\u8d70'];
+    const sceneChecked = (r.scene||[]).map(v=>sceneMap[v]||v);
+    let sceneText = sceneOpts.map(opt => (sceneChecked.includes(opt) ? '\u2611' : '\u2610') + opt).join(' ');
+    if (r.sceneOther) { sceneText += ' \u2611' + r.sceneOther; }
+    else { sceneText += ' \u2610\u5176\u4ed6____'; }
+    setCell(ws, 10, 1, '\u6d4b\u8bd5\u573a\u666f', font11, center, allBorders);
+    setCell(ws, 10, 2, sceneText, font11, center, allBorders);
+    setCell(ws, 10, 3, '', font11, center, allBorders);
+    setCell(ws, 10, 4, '', font11, center, allBorders);
+    ws.mergeCells(10, 2, 10, 4);
+
+    // Row 11: Total score + comfort level
+    const totalScore = r.totalScore || 0;
+    let comfortLevel = '';
+    if (totalScore >= 153) {
+      comfortLevel = '\u4f18\u79c0\uff1a\u8212\u9002\u5ea6\u6781\u4f73\uff0c\u63a8\u8350\u91cf\u4ea7';
+    } else if (totalScore >= 136) {
+      comfortLevel = '\u826f\u597d\uff1a\u6574\u4f53\u8212\u9002\uff0c\u6b21\u8981\u95ee\u9898\u53ef\u4f18\u5316';
+    } else if (totalScore >= 119) {
+      comfortLevel = '\u4e00\u822c\uff1a\u57fa\u672c\u53ef\u7a7f\uff0c\u5b58\u5728\u660e\u663e\u75db\u70b9\u9700\u6539\u8fdb';
+    } else {
+      comfortLevel = '\u9700\u6539\u8fdb\uff1a\u8212\u9002\u5ea6\u4e0d\u8db3\uff0c\u9700\u5927\u5e45\u6539\u8fdb';
+    }
+    setCell(ws, 11, 1, '\u6ee1\u610f\u5ea6\u603b\u5206', font11, center, allBorders);
+    setCell(ws, 11, 2, (totalScore)+' /170  \u8212\u9002\u7b49\u7ea7\uff1a'+comfortLevel, font11, center, allBorders);
+    setCell(ws, 11, 3, '', font11, center, allBorders);
+    setCell(ws, 11, 4, '', font11, center, allBorders);
+    ws.mergeCells(11, 2, 11, 4);
+
+    // Row 12-13: Suggestion
+    setCell(ws, 12, 1, '\u8bd5\u7a7f\u6539\u826f\u5efa\u8bae', font11, center, allBorders);
+    setCell(ws, 12, 2, r.suggestion||'', font11, center, allBorders);
+    setCell(ws, 12, 3, '', font11, center, allBorders);
+    setCell(ws, 12, 4, '', font11, center, allBorders);
+    setCell(ws, 13, 1, '', font11, center, allBorders);
+    setCell(ws, 13, 2, '', font11, center, allBorders);
+    setCell(ws, 13, 3, '', font11, center, allBorders);
+    setCell(ws, 13, 4, '', font11, center, allBorders);
+    ws.mergeCells(12, 1, 13, 1);
+    ws.mergeCells(12, 2, 13, 4);
+
+    // Row 14: Core test header
+    for(let c = 1; c <= 4; c++){
+      setCell(ws, 14, c, c === 1 ? '\u6838\u5fc3\u6d4b\u8bd5\u9879' : '', font11b, center, allBorders);
+    }
+    ws.mergeCells(14, 1, 14, 4);
+
+    // Row 15: Table header
+    setCell(ws, 15, 1, '\u5e8f\u53f7', font11b, center, allBorders);
+    setCell(ws, 15, 2, '\u8bd5\u7a7f\u6d4b\u8bd5\u9879\u76ee', font11b, center, allBorders);
+    setCell(ws, 15, 3, '\u6d4b\u8bd5\u7ed3\u679c\u4e8c\u9009\u4e00', font11b, center, allBorders);
+    setCell(ws, 15, 4, '\u5355\u9879\u8bc4\u5206(1-5\u5206)', font11b, center, allBorders);
+
+    // Row 16-39: Core items seq 1-24
+    const coreMap = TEMPLATE_ITEM_MAP.filter(t => t.seq <= 24);
+    coreMap.forEach((t, i) => {
+      const rowNum = 16 + i;
+      const d = (r.items||{})[String(t.itemId)] || {};
+      const item = allItems.find(it => it.id === t.itemId);
+      const opts = item ? item.opts : [];
+
+      setCell(ws, rowNum, 1, t.seq, font11, center, allBorders);
+      setCell(ws, rowNum, 2, t.name, font11, center, allBorders);
+
+      if(opts.length > 0){
+        const richText = [];
+        opts.forEach((opt, j) => {
+          const isSelected = opt === (d.result || '');
+          const color = isSelected ? 'FF000000' : 'FFBFBFBF';
+          richText.push({ text: opt, font: { color: { argb: color }, name: '\u7b49\u7ebf', size: 11 } });
+          if(j < opts.length - 1){
+            richText.push({ text: '/', font: { color: { argb: 'FFBFBFBF' }, name: '\u7b49\u7ebf', size: 11 } });
+          }
+        });
+        const cCell = ws.getRow(rowNum).getCell(3);
+        cCell.value = { richText: richText };
+        cCell.alignment = center;
+        cCell.border = allBorders;
+      } else {
+        setCell(ws, rowNum, 3, d.result||'', font11, center, allBorders);
+      }
+
+      setCell(ws, rowNum, 4, d.score||'', font11, center, allBorders);
+    });
+
+    // Row 40: Extra test header
+    for(let c = 1; c <= 4; c++){
+      setCell(ws, 40, c, c === 1 ? '\u62d3\u5c55\u9644\u52a0\u6d4b\u8bd5\u9879\uff08\u6df1\u5ea6\u7814\u7a76\u53ef\u9009\uff09' : '', font11b, center, allBorders);
+    }
+    ws.mergeCells(40, 1, 40, 4);
+
+    // Row 41: Table header
+    setCell(ws, 41, 1, '\u5e8f\u53f7', font11b, center, allBorders);
+    setCell(ws, 41, 2, '\u8865\u5145\u8212\u9002\u5ea6\u6d4b\u8bd5\u9879\u76ee', font11b, center, allBorders);
+    setCell(ws, 41, 3, '\u7ed3\u679c\u9009\u9879', font11b, center, allBorders);
+    setCell(ws, 41, 4, '\u5355\u9879\u8bc4\u5206(1-5\u5206)', font11b, center, allBorders);
+
+    // Row 42-51: Extra items seq 25-34
+    const extraMap = TEMPLATE_ITEM_MAP.filter(t => t.seq > 24);
+    extraMap.forEach((t, i) => {
+      const rowNum = 42 + i;
+      const d = (r.items||{})[String(t.itemId)] || {};
+      let name = t.name;
+      if (t.seq === 31 || t.seq === 33) {
+        name = name.replace(/\uff08([^\uff09]+)\uff09/g, '\n\uff08$1\uff09');
+      }
+      const item = allItems.find(it => it.id === t.itemId);
+      const opts = item ? item.opts : [];
+
+      setCell(ws, rowNum, 1, t.seq, font11, center, allBorders);
+      setCell(ws, rowNum, 2, name, font11, centerWrap, allBorders);
+
+      if(opts.length > 0){
+        const richText = [];
+        opts.forEach((opt, j) => {
+          const isSelected = opt === (d.result || '');
+          const color = isSelected ? 'FF000000' : 'FFBFBFBF';
+          richText.push({ text: opt, font: { color: { argb: color }, name: '\u7b49\u7ebf', size: 11 } });
+          if(j < opts.length - 1){
+            richText.push({ text: '/', font: { color: { argb: 'FFBFBFBF' }, name: '\u7b49\u7ebf', size: 11 } });
+          }
+        });
+        const cCell = ws.getRow(rowNum).getCell(3);
+        cCell.value = { richText: richText };
+        cCell.alignment = center;
+        cCell.border = allBorders;
+      } else {
+        setCell(ws, rowNum, 3, d.result||'', font11, center, allBorders);
+      }
+
+      setCell(ws, rowNum, 4, d.score||'', font11, center, allBorders);
+    });
+
+    // Row 52: Scoring rule
+    setCell(ws, 52, 1, '\u8bc4\u5206\u8bf4\u660e\uff1a', font11b, center, { top: thin, left: thin, right: thin });
+    setCell(ws, 52, 2, '\u5355\u9879\u8bc4\u5206\u89c4\u5219\uff1a5\u5206=\u5b8c\u5168\u8212\u9002\u65e0\u4efb\u4f55\u4e0d\u9002\uff1b4\u5206=\u8f7b\u5fae\u4e0d\u9002\uff0c\u4e0d\u5f71\u54cd\u7a7f\u7740\uff1b3\u5206=\u660e\u663e\u4e0d\u9002\uff0c\u53ef\u6b63\u5e38\u7a7f\u7740\u4f46\u6709\u75db\u70b9\uff1b2\u5206=\u4e25\u91cd\u4e0d\u9002\uff0c\u52c9\u5f3a\u53ef\u7a7f\u7740\uff1b1\u5206=\u5b8c\u5168\u65e0\u6cd5\u6b63\u5e38\u7a7f\u7740\u3002', font11b, centerWrap, { top: thin, left: thin, right: thin });
+    setCell(ws, 52, 3, '', font11b, centerWrap, { top: thin });
+    setCell(ws, 52, 4, '', font11b, centerWrap, { top: thin, right: thin });
+    ws.mergeCells(52, 2, 52, 4);
+
+    // Row 53: Empty row
+    setCell(ws, 53, 1, '', font11, center, { top: thin });
+    setCell(ws, 53, 2, '', font11, center, { top: thin });
+    setCell(ws, 53, 3, '', font11, center, { top: thin });
+    setCell(ws, 53, 4, '', font11, center, { top: thin });
+
+    // === ALL ROW HEIGHTS SET AT THE VERY END (after all cell operations) ===
+    // Set worksheet default row height as a fallback
+    ws.properties.defaultRowHeight = 14.5;
+    // Explicitly set each row height
+    for(let i = 1; i <= 53; i++){
+      const row = ws.getRow(i);
+      row.height = 14.5;
+    }
+    // Special heights: row 48 (seq=31), row 50 (seq=33), row 52 (scoring), row 53 (empty)
+    ws.getRow(48).height = 29;
+    ws.getRow(50).height = 29;
+    ws.getRow(52).height = 29;
+    ws.getRow(53).height = 29;
+  }
+
+  const buffer = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const exportModelCode = (recordsToExport[0] && recordsToExport[0].modelCode) || '\u672a\u77e5\u978b\u6b3e';
+  a.download = exportModelCode + '\u8bd5\u7a7f\u8bc4\u4ef7\u8868.xlsx';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('\u2705 \u5df2\u5bfc\u51fa ' + recordsToExport.length + ' \u6761\u8bb0\u5f55');
+}
+// ==================== 预览 ====================
+function previewRecord(id){
+  const r = records.find(x => x.id === id);
+  if(!r) return;
+  const body = document.getElementById('previewBody');
+  const itemRows = TEMPLATE_ITEM_MAP.map(t => {
+    const d = (r.items||{})[String(t.itemId)] || {};
+    return `<tr><td>${t.seq}</td><td>${t.name}</td><td>${d.result||'-'}</td><td>${d.score||'-'}</td></tr>`;
+  }).join('');
+  body.innerHTML = `
+    <h3>运动休闲鞋整鞋舒适度主观试穿评价表</h3>
+    <p><strong>货号：</strong>${r.modelCode||'-'} &nbsp; <strong>楦型：</strong>${r.lastShape||'-'} &nbsp; <strong>试穿员：</strong>${r.tester||'-'} &nbsp; <strong>总分：</strong>${r.totalScore||0}/170</p>
+    <table><thead><tr><th>序号</th><th>项目</th><th>结果</th><th>评分</th></tr></thead><tbody>${itemRows}</tbody></table>`;
+  document.getElementById('previewOverlay').classList.add('show');
+}
+
+function closePreview(){
+  document.getElementById('previewOverlay').classList.remove('show');
+}
+
+// ==================== 备份JSON ====================
+function downloadJSON(){
+  const blob = new Blob([JSON.stringify(records, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `试穿记录备份_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  toast('✅ 备份已下载');
+}
+
+// ==================== 初始化 ====================
+refreshData();
+</script>
+</body>
+</html>
